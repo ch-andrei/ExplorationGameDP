@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<stats>
+
+    <Assets>
+        <trees>
+            <broadleaf>Broadleaf_I1,Broadleaf_I10,Broadleaf_I11,Broadleaf_I12,Broadleaf_I13,Broadleaf_I14,Broadleaf_I15,Broadleaf_I16,Broadleaf_I17,Broadleaf_I18,Broadleaf_I19,Broadleaf_I2,Broadleaf_I20,Broadleaf_I21,Broadleaf_I3,Broadleaf_I4,Broadleaf_I5,Broadleaf_I6,Broadleaf_I7,Broadleaf_I8,Broadleaf_I9</broadleaf>
+            <conifers>Conifer_I1,Conifer_I2,Conifer_I3,Pine_NoSnow1,Pine_NoSnow2,Pine_NoSnow3</conifers>
+            <conifersSnowy>Pine_Snowy1,Pine_Snowy2,Pine_Snowy3</conifersSnowy>
+            <randompoly>stump_a,stump_b,stump_c,stump_d,tree_a,tree_b,tree_c,tree_d,tree_e,tree_f,tree_g,tree_h,tree_i,tree_j,tree_k,tree_l,tree_m,tree_n,tree_o,tree_p</randompoly>
+        </trees>
+    </Assets>
+
+    <MapGeneratorInput>
+        <default>
+            <n>100000</n>
+            <seed>0</seed>
+            <region_size>40000</region_size>
+            <elevation>1000</elevation>
+            <rivers>50</rivers>
+            <water>0.60</water>
+            <noise_resolution>750</noise_resolution>
+            <noise_amplitude>0.8</noise_amplitude>
+            <noise_persistance>0.55</noise_persistance>
+        </default>
+
+        <amplified>
+            <n>20000</n>
+            <seed>250</seed>
+            <region_size>2500</region_size>
+            <elevation>500</elevation>
+            <rivers>50</rivers>
+            <water>0.6</water>
+            <noise_resolution>250</noise_resolution>
+            <noise_amplitude>3</noise_amplitude>
+            <noise_persistance>0.45</noise_persistance>
+        </amplified>
+    </MapGeneratorInput>
+
+    <player>
+     <actionPoints>5</actionPoints>
+     <supplies>250</supplies>
+     <moraleup>1.1</moraleup>
+     <moraledown>0.85</moraledown>
+ </player>
+
+ <followers>
+     <Swordsman>
+        <foodDemand>5</foodDemand>
+        <morale>0.75</morale>
+        <strength>9</strength>
+        <willpower>0.15</willpower>
+    </Swordsman>
+
+    <PeasantArcher>
+        <foodDemand>4</foodDemand>
+        <morale>0.55</morale>
+        <strength>5</strength>
+        <willpower>0</willpower>
+    </PeasantArcher>
+
+    <Archer>
+        <foodDemand>5</foodDemand>
+        <morale>0.75</morale>
+        <strength>11</strength>
+        <willpower>0.15</willpower>
+    </Archer>
+
+    <Wizard>
+        <foodDemand>8</foodDemand>
+        <morale>0.95</morale>
+        <strength>18</strength>
+        <willpower>0.45</willpower>
+    </Wizard>
+</followers>
+
+</stats>
+
