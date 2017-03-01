@@ -6,9 +6,7 @@ using TileAttributes;
 namespace Tiles {
     public abstract class Tile {
 
-        private Vector3 pos;
-
-        private TileType tileType;
+        public Vector2 index { get; set; }
 
         // tile properties
         public float fertility { get; set; }
@@ -19,8 +17,13 @@ namespace Tiles {
 
         public float elevationToWater { get; set; } // relative to water: negative when under water, else positive
 
+        private Vector3 pos;
+
+        private TileType tileType;
+
         // constructors
-        public Tile(Vector3 pos) {
+        public Tile(Vector3 pos, Vector2 index) {
+            this.index = index;
             this.pos = pos;
             this.setTileType(new LandTileType(true));
             this.fertility = 0;
@@ -30,7 +33,7 @@ namespace Tiles {
             this.danger = 0;
             }
 
-        public Tile(Vector3 pos, TileType tileType) : this(pos) {
+        public Tile(Vector3 pos, Vector2 index, TileType tileType) : this(pos, index) {
             this.setTileType(tileType);
         }
 
@@ -105,6 +108,28 @@ namespace Tiles {
 
     public class HexTile : Tile {
 
+        // indexes for the Neighbors array
+        public enum Directions : int {
+            TopRight = 0,
+            Right = 1,
+            BottomRight = 2,
+            BottomLeft = 3,
+            Left = 4,
+            TopLeft = 5
+        }
+
+        // right, 
+        public static Vector2[] Neighbors = new Vector2[] 
+        {
+            // order: top right, right, bottom right, bottom left, left, top left
+            new Vector2(+1, -1),
+            new Vector2(+1, 0),
+            new Vector2(0, +1),
+            new Vector2(-1, +1),
+            new Vector2(-1, 0),
+            new Vector2(0, -1)
+        };
+
         // static size and height since this is shared for all tiles within the region
         public static float size { get; set; }
         public static float height { get; set; }
@@ -112,10 +137,10 @@ namespace Tiles {
         private Hexagon hexagon;
 
         // constructors
-        public HexTile(Vector3 pos) : base(pos) {
+        public HexTile(Vector3 pos, Vector2 index) : base(pos, index) {
             hexagon = new Hexagon(pos, height, size);
         }
-        public HexTile(Vector3 pos, TileType tileType) : base(pos, tileType) {
+        public HexTile(Vector3 pos, Vector2 index, TileType tileType) : base(pos, index, tileType) {
             hexagon = new Hexagon(pos, height, size);
         }
 

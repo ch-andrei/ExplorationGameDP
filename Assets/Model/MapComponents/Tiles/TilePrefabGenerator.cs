@@ -33,7 +33,7 @@ public class TilePrefabGenerator : MonoBehaviour {
             hexHeight = Mathf.Sqrt(3) / 2 * hexSize;
             HexTile.height = hexHeight;
             HexTile.size = hexSize;
-            tile = new HexTile(new Vector3(0, 200, 0), new LandTileType(false));
+            tile = new HexTile(new Vector3(0, 200, 0), new Vector2(0, 0), new LandTileType(false));
             CreateTilePrefab = false;
             DoCreateTilePrefab();
         }

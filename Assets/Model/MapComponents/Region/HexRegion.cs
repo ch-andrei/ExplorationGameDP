@@ -25,6 +25,9 @@ public static class RegionParams {
     // other
     public static float waterLevelElevation;
 
+    public static float erossionStrength;
+    public static int erossionIterations;
+
     public static void UpdateWorldGenerationParams(ViewableRegion region) {
         midTempElevation = region.getAverageElevation();
         tanOffsetTemp = midTempElevation * tanFalloffTemp;
@@ -37,13 +40,17 @@ public static class RegionParams {
 
         worldAmbientTemperature = 45f;
 
-        worldScale = 2500;
-        worldCoreTemperature = 75f;
+        worldScale = 500;
+        worldCoreTemperature = 125f;
 
-        tanFalloffTemp = 0.02f;
-        linFalloffTemp = 0.05f;
+        tanFalloffTemp = 0.005f;
+        linFalloffTemp = 0.025f;
 
-        latitudeFactorTemp = 0.02f;
+        latitudeFactorTemp = 0.025f;
+
+        erossionStrength = 0.25f;
+
+        erossionIterations = 5;
     }
 }
 
@@ -74,11 +81,18 @@ public class HexRegion : ViewableRegion {
 
         CreateHexPositionVectors(this.n);
 
+        // TODO 
+        computeErossion(RegionParams.erossionStrength, RegionParams.erossionIterations);
+        // RegionParams.UpdateWorldGenerationParams(this);
+
         computeElevationParameters();
 
         RegionParams.UpdateWorldGenerationParams(this);
 
         computeTemperatures();
+
+        // TODO
+        // computeHumidity()
 
         generateWater(water);
 
@@ -87,8 +101,39 @@ public class HexRegion : ViewableRegion {
         Debug.Log("Generated Region with " + this.getViewableTiles().Count + "/" + this.n + " viewable tiles; hexsize " + this.hexSize + ", hexheight " + this.hexHeight);
     }
 
+    private void computeErossion(float erossionStrength, int iterations) {
+        while (iterations-- > 0) {
+            computeErossion(erossionStrength);
+        }
+    }
+    private void computeErossion(float erossionStrength) {
+        // TODO
+    }
+
+    public List<Tile> getTileNeighbors(Vector3 tilePos) {
+        return getTileNeighbors(worldCoordToIndex(tilePos));
+    }
+    public List<Tile> getTileNeighbors(Vector2 tileIndex) {
+        List<Tile> neighbors = new List<Tile>();
+        foreach (Vector2 dir in HexTile.Neighbors) {
+            try {
+                Vector2 index = tileIndex + dir;
+                Tile neighbor = this.tiles[(int)index.x, (int)index.y];
+                if (neighbor != null)
+                    neighbors.Add(neighbor);
+            } catch (IndexOutOfRangeException e) {
+                // nothing to do
+            }
+        }
+        return neighbors;
+    }
+
     private void CreateHexPositionVectors(int n) {
-        if (n < 1) return;
+
+        // return if n too small
+        if (n < 1)
+            return;
+
         this.gridRadius = getGridSizeForHexagonalGridWithNHexes(n);
 
         int array_size = 2 * this.gridRadius + 1;
@@ -105,21 +150,27 @@ public class HexRegion : ViewableRegion {
         // hex cube coordinatess
         for (int X = -this.gridRadius; X <= this.gridRadius; X++) {
             for (int Y = -this.gridRadius; Y <= this.gridRadius; Y++) {
+
                 int i, j;
                 i = X + this.gridRadius;
                 j = Y + this.gridRadius;
+
                 if (Math.Abs(X + Y) > this.gridRadius ) {
-                    tiles[i, j] = new HexTile(new Vector3(-1, -1, -1));
+                    tiles[i, j] = null;
                     continue;
                 }
+
+                // compute hex Z coord
                 int Z = -X - Y;
                 //Debug.Log("Making new tile at array index: " + i + ", " + j + "; hex coords: " + X + ", " + Y + ", " + (Y-Z));
+
                 // unity axis coordinates
                 float x = this.hexSize * X * 3 / 2;
                 float z = this.hexHeight * (Y - Z);
                 float y = this.elevation * noise.getNoiseValueAt((int)(x + this.center), (int)(z + this.center), this.region_size); // get elevation from Noise 
-                // create vector3 for x y z
-                tile = new HexTile(new Vector3(x, y, z), new LandTileType(true)); // height, size
+
+                // initialize tile
+                tile = new HexTile(new Vector3(x, y, z), new Vector2(i, j), new LandTileType(false)); // height, size
                 tiles[i, j] = tile;
                 counter++;
             }
@@ -146,17 +197,19 @@ public class HexRegion : ViewableRegion {
         return this.tiles[i, j];
     }
 
+    private Vector2 worldCoordToIndex(Vector2 pos) {
+        return worldCoordToIndex(pos.x, pos.y);
+    }
     private Vector2 worldCoordToIndex(float x, float y) {
         float q = (x) * 2f / 3f / this.hexSize;
         float r = (float)(-(x) / 3f + Math.Sqrt(3f) / 3f * (y)) / this.hexSize;
         return roundCubeCoord(q, r);
     }
 
+    // code refactored from http://www.redblobgames.com/grids/hexagons/
     private Vector3 roundCubeCoord(float X, float Y) {
         return roundCubeCoord(new Vector3(X, Y, -X - Y));
     }
-
-    // code refactored from http://www.redblobgames.com/grids/hexagons/
     private Vector3 roundCubeCoord(Vector3 cubeCoord) {
         float rx = (float)Math.Round(cubeCoord.x);
         float ry = (float)Math.Round(cubeCoord.y);
@@ -174,15 +227,22 @@ public class HexRegion : ViewableRegion {
     }
 
     private void generateWater(float waterLevelUnitFactor) {
+        // clamp input value
         if (waterLevelUnitFactor > 1) waterLevelUnitFactor = 1;
         if (waterLevelUnitFactor < 0) waterLevelUnitFactor = 0;
+
+        // compute water level
         this.waterLevelElevation = (int)(this.minElevation + ((this.maxElevation - this.minElevation) +
                 (this.averageElevation - this.minElevation)) / 2 * waterLevelUnitFactor);
+
+        // setup tiles
         foreach (Tile tile in this.getViewableTiles()) {
             tile.elevationToWater = tile.getY() - waterLevelElevation;
             if (tile.elevationToWater <= 0) {
                 tile.setTileType(new WaterTileType(true, waterLevelElevation));
             }
+            else
+                tile.setTileType(new LandTileType(true));
         }
         this.computeElevationParameters();
     }
@@ -245,7 +305,7 @@ public class HexRegion : ViewableRegion {
     public List<Tile> getViewableTiles() {
         List<Tile> tiles = new List<Tile>();
         foreach (Tile tile in this.tiles)
-            if (tile.getTileType() != null)
+            if (tile != null && tile.getTileType() != null)
                 tiles.Add(tile);
         return tiles;
     }

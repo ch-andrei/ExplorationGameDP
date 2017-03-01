@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System;
+using System.Collections.Generic;
 
 using TileAttributes;
 using Tiles;
@@ -9,7 +10,6 @@ public class MouseControl : MonoBehaviour {
 
     private Tile currentSelectedTile, clickedTile;
     private int[] currentSelectedIndex, clickedIndex;
-    private bool selectionGUIOn;
 
     void Start() {
         clickedIndex = new int[2];
@@ -42,13 +42,14 @@ public class MouseControl : MonoBehaviour {
     }
 
     private int menuWidth = Screen.width / 5;
-    private int menuHeight = 300;
+    private int menuHeight = 350;
 
     void OnGUI() {
         if (clickedTile != null) {
-            GUI.Box(new Rect(Screen.width - menuWidth, 0, menuWidth, menuHeight), "Selected tile\nPosition: " + clickedTile.getPos() + 
+            string toPrint = "Selected tile\nPosition: " + clickedTile.getPos() +
                 "\nCoordinate: [" + (clickedIndex[0]) + ", " + (clickedIndex[1]) +
-                "]\n" + clickedTile);
+                "]\n" + clickedTile;
+            GUI.Box(new Rect(Screen.width - menuWidth, 0, menuWidth, menuHeight), toPrint);
         }
     }
 }

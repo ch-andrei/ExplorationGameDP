@@ -15,8 +15,7 @@ public class NoiseMap {
                 amplifyElevations(elevations, 2, 2);
                 break;
             case 3:
-                amplifyElevations(elevations, 1, 5f); // applies exponential function to elevation[i][j]
-                elevations = applyNormalizedHalfSphere(elevations, elevations.GetLength(0), 0.25f, 0.5f); // makes center higher elevations
+                amplifyElevations(elevations, 1, 6f); // applies exponential function to elevation[i][j]
                 logarithmicClamp(elevations, 1f, 1);
                 break;
             case 5:

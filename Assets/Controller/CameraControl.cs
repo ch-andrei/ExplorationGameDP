@@ -12,7 +12,7 @@ public class CameraControl : MonoBehaviour {
 
     static float viewCenterOffset = 200f;
 
-    static int cameraLimitDistance = 5000;
+    static int cameraLimitDistance = 15000;
 
     static float global_sensitivity = 1F;
 
