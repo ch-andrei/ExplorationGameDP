@@ -5,23 +5,23 @@
     <Assets>
         <trees>
             <broadleaf>Broadleaf_I1,Broadleaf_I10,Broadleaf_I11,Broadleaf_I12,Broadleaf_I13,Broadleaf_I14,Broadleaf_I15,Broadleaf_I16,Broadleaf_I17,Broadleaf_I18,Broadleaf_I19,Broadleaf_I2,Broadleaf_I20,Broadleaf_I21,Broadleaf_I3,Broadleaf_I4,Broadleaf_I5,Broadleaf_I6,Broadleaf_I7,Broadleaf_I8,Broadleaf_I9</broadleaf>
-            <conifers>Conifer_I1,Conifer_I2,Conifer_I3,Pine_NoSnow1,Pine_NoSnow2,Pine_NoSnow3</conifers>
-            <conifersSnowy>Pine_Snowy1,Pine_Snowy2,Pine_Snowy3</conifersSnowy>
+            <conifers>Pine_NoSnow1,Pine_NoSnow2,Pine_NoSnow3</conifers>
+            <conifersSnowy>Pine_Snow1,Pine_Snow2,Pine_Snow3</conifersSnowy>
             <randompoly>stump_a,stump_b,stump_c,stump_d,tree_a,tree_b,tree_c,tree_d,tree_e,tree_f,tree_g,tree_h,tree_i,tree_j,tree_k,tree_l,tree_m,tree_n,tree_o,tree_p</randompoly>
         </trees>
     </Assets>
 
     <MapGeneratorInput>
         <default>
-            <n>100000</n>
+            <n>200000</n>
             <seed>0</seed>
-            <region_size>40000</region_size>
+            <region_size>25000</region_size>
             <elevation>1000</elevation>
-            <rivers>50</rivers>
-            <water>0.60</water>
-            <noise_resolution>750</noise_resolution>
-            <noise_amplitude>0.8</noise_amplitude>
-            <noise_persistance>0.55</noise_persistance>
+            <rivers>0</rivers>
+            <water>0.45</water>
+            <noise_resolution>1000</noise_resolution>
+            <noise_amplitude>0.7</noise_amplitude>
+            <noise_persistance>0.65</noise_persistance>
         </default>
 
         <amplified>
