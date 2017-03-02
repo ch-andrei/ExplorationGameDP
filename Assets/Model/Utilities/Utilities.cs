@@ -10,6 +10,61 @@ public class Utilities  {
         return c;
     }
 
+    public static void normalize(float[,] values) {
+        // get average and max elevation values
+        float avg = 0, max = 0, min = float.MaxValue;
+        for (int i = 0; i < values.GetLength(0); i++) {
+            for (int j = 0; j < values.GetLength(0); j++) {
+                avg += values[i, j];
+                if ((values[i, j] > max))
+                    max = values[i, j];
+                if ((values[i, j] < min))
+                    min = values[i, j];
+            }
+        }
+        avg /= values.GetLength(0) * values.GetLength(0); // since elevations is 2d array nxn
+        Debug.Log("Pre min/max/avg: " + min + "/" + max + "/" + avg);
+        float adjustment = 1.0f / (max - min);
+        for (int i = 0; i < values.GetLength(0); i++) {
+            for (int j = 0; j < values.GetLength(0); j++) {
+                values[i, j] = (Mathf.Abs(values[i, j] - min) * adjustment);
+            }
+        }
+        avg = 0;
+        max = 0;
+        min = float.MaxValue;
+        for (int i = 0; i < values.GetLength(0); i++) {
+            for (int j = 0; j < values.GetLength(0); j++) {
+                avg += values[i, j];
+                if ((values[i, j] > max))
+                    max = values[i, j];
+                if ((values[i, j] < min))
+                    min = values[i, j];
+            }
+        }
+        Debug.Log("Post min/max/avg: " + min + "/" + max + "/" + avg / (values.GetLength(0) * values.GetLength(0)));
+    }
+
+    public static float[,] mergeArrays(float[,] a, float[,] b, float weightA, float weightB) {
+        // works with arrays of different size
+        bool choice = a.GetLength(0) > b.GetLength(0);
+        float[,] c = (choice) ? new float[a.GetLength(0), a.GetLength(0)] : new float[b.GetLength(0), b.GetLength(0)];
+        double ratio = (double)a.GetLength(0) / b.GetLength(0);
+        for (int i = 0; i < c.GetLength(0); i++) {
+            for (int j = 0; j < c.GetLength(0); j++) {
+                // sum weighted values
+                if (choice) {
+                    c[i, j] = weightA * a[i, j] + weightB * b[(int)(i / ratio), (int)(j / ratio)];
+                } else {
+                    c[i, j] = weightA * a[(int)(i * ratio), (int)(j * ratio)] + weightB * b[i, j];
+                }
+                // rescale the values back
+                c[i, j] /= (weightA + weightB);
+            }
+        }
+        return c;
+    }
+
     public class statsXMLreader {
         public static XmlDocument doc;
 
@@ -52,25 +107,5 @@ public class Utilities  {
                 return null;
             return strings.ToArray();
         }
-    }
-
-    public static float[,] mergeArrays(float[,] a, float[,] b, float weightA, float weightB) {
-        // works with arrays of different size
-        bool choice = a.GetLength(0) > b.GetLength(0);
-        float[,] c = (choice) ? new float[a.GetLength(0), a.GetLength(0)] : new float[b.GetLength(0), b.GetLength(0)];
-        double ratio = (double)a.GetLength(0) / b.GetLength(0);
-        for (int i = 0; i < c.GetLength(0); i++) {
-            for (int j = 0; j < c.GetLength(0); j++) {
-                // sum weighted values
-                if (choice) {
-                    c[i, j] = weightA * a[i, j] + weightB * b[(int)(i / ratio), (int)(j / ratio)];
-                } else {
-                    c[i, j] = weightA * a[(int)(i * ratio), (int)(j * ratio)] + weightB * b[i, j];
-                }
-                // rescale the values back
-                c[i, j] /= (weightA + weightB);
-            }
-        }
-        return c;
     }
 }

@@ -7,7 +7,7 @@ using UnityEngine;
 public class GameSessionInspector : Editor {
 
     string[] presetChoices = new[] { "default", "amplified", "custom" };
-    int presetChoice = 0;
+    int presetChoice = 2;
 
     public override void OnInspectorGUI() {
         base.OnInspectorGUI();

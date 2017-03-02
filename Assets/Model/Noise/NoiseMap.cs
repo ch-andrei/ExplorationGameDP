@@ -16,6 +16,7 @@ public class NoiseMap {
                 break;
             case 3:
                 amplifyElevations(elevations, 1, 6f); // applies exponential function to elevation[i][j]
+                elevations = applyNormalizedHalfSphere(elevations, elevations.GetLength(0), 0.5f, 0.75f); // makes center higher elevations
                 logarithmicClamp(elevations, 1f, 1);
                 break;
             case 5:
@@ -23,7 +24,7 @@ public class NoiseMap {
             default:
                 break;
         }
-        normalize(elevations);
+        Utilities.normalize(elevations);
         //normalizeToNElevationLevels(elevations, 50);
         return elevations;
     }
@@ -91,7 +92,7 @@ public class NoiseMap {
                 elevations[i, j] = (float)Math.Pow(scale_factor * elevations[i, j], amplify_factor);
             }
         }
-        normalize(elevations);
+        Utilities.normalize(elevations);
     }
 
     public static void convolutionFilter(float[,] elevations, float[,] weights) {
@@ -110,41 +111,6 @@ public class NoiseMap {
                 }
             }
         }
-    }
-
-    public static void normalize(float[,] elevations) {
-        // get average and max elevation values
-        float avg = 0, max = 0, min = float.MaxValue;
-        for (int i = 0; i < elevations.GetLength(0); i++) {
-            for (int j = 0; j < elevations.GetLength(0); j++) {
-                avg += elevations[i, j];
-                if ((elevations[i, j] > max))
-                    max = elevations[i, j];
-                if ((elevations[i, j] < min))
-                    min = elevations[i, j];
-            }
-        }
-        avg /= elevations.GetLength(0) * elevations.GetLength(0); // since elevations is 2d array nxn
-        Debug.Log("Pre min/max/avg: " + min + "/" + max + "/" + avg);
-        float adjustment = 1.0f / (max - min);
-        for (int i = 0; i < elevations.GetLength(0); i++) {
-            for (int j = 0; j < elevations.GetLength(0); j++) {
-                elevations[i, j] = (Math.Abs(elevations[i, j] - min) * adjustment);
-            }
-        }
-        avg = 0;
-        max = 0;
-        min = float.MaxValue;
-        for (int i = 0; i < elevations.GetLength(0); i++) {
-            for (int j = 0; j < elevations.GetLength(0); j++) {
-                avg += elevations[i, j];
-                if ((elevations[i, j] > max))
-                    max = elevations[i, j];
-                if ((elevations[i, j] < min))
-                    min = elevations[i, j];
-            }
-        }
-        Debug.Log("Post min/max/avg: " + min + "/" + max + "/" + avg/(elevations.GetLength(0) * elevations.GetLength(0)));
     }
 
     public static float[,] applyNormalizedHalfSphere(float[,] elevations, int size, float intensity, float threshold=1f) {

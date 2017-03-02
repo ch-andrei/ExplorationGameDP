@@ -26,7 +26,7 @@ public class MapView : MonoBehaviour {
     public TileView tile;
 
     public static Vector3 viewCenterPoint;
-    public static float drawDistance = 750f;
+    public static float drawDistance = 300f;
 
     // customize in editor
     public TileViewInitParams tileViewInitParams = new TileViewInitParams();

@@ -87,7 +87,7 @@ namespace TileAttributes {
         public void applyEffect(Tile tile) {
             if (_applyEffect) {
                 // update temperature: compute at water level elevation and not at tile's elevation
-                tile.computeTemperature(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0));
+                tile.temperature = (HexRegion.computeTemperature(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0)));
             }
         }
     }

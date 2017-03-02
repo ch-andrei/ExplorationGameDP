@@ -54,14 +54,7 @@ namespace Tiles {
             return s;
         }
 
-        public void computeTemperature(Vector3 tilePos) {
-            // elevation using atan
-            this.temperature = RegionParams.worldCoreTemperature * (1f - 1f / Mathf.PI * (Mathf.PI / 2f + Mathf.Atan(tilePos.y * RegionParams.tanFalloffTemp - RegionParams.tanOffsetTemp)));
-            // elevation linear
-            this.temperature -= RegionParams.linFalloffTemp * (tilePos.y - RegionParams.midTempElevation);
-            // latitude exponential
-            this.temperature -= RegionParams.worldCoreTemperature * (Mathf.Exp(RegionParams.latitudeFactorTemp * (Mathf.Abs(tilePos.z) / RegionParams.worldScale)) - 1);
-        }
+
         // getters //
         public Vector3 getPos() {
             return pos;
@@ -82,6 +75,7 @@ namespace Tiles {
             return this.tileType.getTileAttributes();
         }
         public abstract Vector3[] getGeometry();
+        public abstract void computeGeometry();
 
         // setters //
         public void setPos(Vector3 newpos) {
@@ -138,10 +132,12 @@ namespace Tiles {
 
         // constructors
         public HexTile(Vector3 pos, Vector2 index) : base(pos, index) {
-            hexagon = new Hexagon(pos, height, size);
         }
         public HexTile(Vector3 pos, Vector2 index, TileType tileType) : base(pos, index, tileType) {
-            hexagon = new Hexagon(pos, height, size);
+        }
+        override
+        public void computeGeometry() {
+            hexagon = new Hexagon(this.getPos(), height, size);
         }
 
         override
