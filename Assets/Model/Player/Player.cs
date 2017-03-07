@@ -15,7 +15,10 @@ public class Player : ViewablePlayer {
     private List<Follower> followers;
     private float moraleUp, moraleDown;
 
+    private static float followerDeathThreshold = 1e-3f;
+
     public Player() {
+        this.pos = new Vector3();
         this.resources = new List<Resource>();
         this.followers = new List<Follower>();
         initPlayer();
@@ -37,6 +40,7 @@ public class Player : ViewablePlayer {
         this.supplies -= getFoodConsumption();
         if (this.supplies < 0) this.supplies = 0;
         updateMorale();
+        updateFollowers();
     }
 
     public void updateMorale() {
@@ -49,6 +53,16 @@ public class Player : ViewablePlayer {
             float morale_adjusted =  adjustement * f.getMorale();
             if (morale_adjusted > 1f) morale_adjusted = 1f;
             f.setMorale(morale_adjusted);
+        }
+    }
+
+    private void updateFollowers() {
+        Follower f;
+        for (int i = 0; i < followers.Count; i++) {
+            f = followers[i];
+            if ( f.getStrength() < followerDeathThreshold ) {
+                followers.RemoveAt(i);
+            }
         }
     }
 
@@ -79,6 +93,10 @@ public class Player : ViewablePlayer {
     public void addFollower(Follower f) {
         this.followers.Add(f);
     }
+    public void setPos(Vector3 pos) {
+        this.pos = pos;
+    }
+
 
     // getters
     public Vector3 getPos() {

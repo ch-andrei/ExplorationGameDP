@@ -22,7 +22,8 @@ namespace TileViews {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
     public class TileView : MonoBehaviour {
         // reference to tile the TileView will display
-        Tile tile;
+        public Tile tile { get; set; }
+
         List<GameObject> tileDecorations;
 
         void Start() {

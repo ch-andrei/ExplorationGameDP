@@ -13,6 +13,8 @@ public class GameSession  {
     public GameSession(MapGeneratorInput mgi) {
         player = new Player();
         mapGenerator = new MapGenerator(mgi);
+
+        // player.setPos();
     }
 
     public void newTurn() {

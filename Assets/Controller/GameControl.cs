@@ -130,19 +130,86 @@ public class GameControl : MonoBehaviour {
     int playerInfoHeight = 200;
     // shows region stats
     void OnGUI() {
-        string[] names = QualitySettings.names;
-        GUILayout.BeginVertical();
-        int i = 0;
-        while (i < names.Length) {
-            if (GUILayout.Button(names[i]))
-                QualitySettings.SetQualityLevel(i, true);
 
-            i++;
+        GUILayout.BeginVertical();
+        {
+            string[] names = QualitySettings.names;
+            int i = 0;
+            while (i < names.Length) {
+                if (GUILayout.Button(names[i]))
+                    QualitySettings.SetQualityLevel(i, true);
+
+                i++;
+            }
+
+            if (GUILayout.Button("view update")) {
+                mapView.redraw();
+            }
+
+            if (GUILayout.Button("region update")) {
+                gameSession.mapGenerator.getRegion().updateRegion();
+            }
         }
         GUILayout.EndVertical();
-        GUI.Box(new Rect(0, Screen.height - playerInfoHeight, playerInfoWidth, playerInfoHeight), 
+
+        GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight), 
             "Player info:\nPosition: " + gameSession.player.getPos() + "\nAction points: " + gameSession.player.getActionPoints() + "\nStrength: " +
             gameSession.player.computeStrength() + "\nMorale: " + gameSession.player.computeMorale() + "\nSupplies: " + gameSession.player.getSupplies() + 
             "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + "\nFollowers:\n" + gameSession.player.getFollowersAsString());
+    }
+
+    // http://answers.unity3d.com/questions/357033/unity3d-and-c-coroutines-vs-threading.html
+    public class ThreadedJob {
+        private bool m_IsDone = false;
+        private object m_Handle = new object();
+        private System.Threading.Thread m_Thread = null;
+        public bool IsDone {
+            get {
+                bool tmp;
+                lock (m_Handle) {
+                    tmp = m_IsDone;
+                }
+                return tmp;
+            }
+            set {
+                lock (m_Handle) {
+                    m_IsDone = value;
+                }
+            }
+        }
+
+        public virtual void Start() {
+            m_Thread = new System.Threading.Thread(Run);
+            m_Thread.Start();
+        }
+        public virtual void Abort() {
+            m_Thread.Abort();
+        }
+
+        protected virtual void ThreadFunction() { }
+
+        protected virtual void OnFinished() { }
+
+        public virtual bool Update() {
+            if (IsDone) {
+                OnFinished();
+                return true;
+            }
+            return false;
+        }
+        public IEnumerator WaitFor() {
+            while (!Update()) {
+                yield return null;
+            }
+        }
+        private void Run() {
+            ThreadFunction();
+            IsDone = true;
+        }
+    }
+
+    public class Job : ThreadedJob {
+
+
     }
 }

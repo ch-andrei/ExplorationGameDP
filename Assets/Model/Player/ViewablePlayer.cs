@@ -14,6 +14,9 @@ public interface ViewablePlayer {
     bool getCurrentUpgrades(out string message);
     bool getPossibleUpgrades(out string message);
 
+    // setters
+    void setPos(Vector3 pos);
+
     // actions
     bool attemptMove(Vector3 moveToPos, out string message);
     bool changeCampStatus(out string message);

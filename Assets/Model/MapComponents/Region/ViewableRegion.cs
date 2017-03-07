@@ -15,4 +15,5 @@ public interface ViewableRegion {
     Tile getTileAt(Vector3 position, out int[] index);
     List<Tile> getTileNeighbors(Vector3 tilePos);
     List<Tile> getTileNeighbors(Vector2 index);
+    void updateRegion();
 }

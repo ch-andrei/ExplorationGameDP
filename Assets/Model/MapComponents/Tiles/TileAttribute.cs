@@ -16,10 +16,17 @@ namespace TileAttributes {
         public float humidityEffect { get; set; }
         public float pollutionEffect { get; set; }
         public float dangerEffect { get; set; }
+        public float moveCostEffect { get; set; }
 
         public TileAttribute(string tileAttributeName, bool applyEffect) {
             this.tileAttributeInfo = tileAttributeName;
             this._applyEffect = applyEffect;
+            temperatureEffect = 0;
+            fertilityEffect = 0;
+            humidityEffect = 0;
+            pollutionEffect = 0;
+            dangerEffect = 0;
+            moveCostEffect = 0;
 
             // TODO define these stats
             // temperatureEffect = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/" + tileAttributeName, "temperatureEffect"));
@@ -27,6 +34,7 @@ namespace TileAttributes {
             // humidityEffect = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/" + tileAttributeName, "humidityEffect"));
             // corruptionEffect = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/" + tileAttributeName, "corruptionEffect"));
             // dangerEffect = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/" + tileAttributeName, "dangerEffect"));
+            // moveCostEffect = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/" + tileAttributeName, "moveCostEffect"));
         }
 
         override
@@ -40,6 +48,7 @@ namespace TileAttributes {
             tile.temperature += temperatureEffect;
             tile.pollution += pollutionEffect;
             tile.danger += dangerEffect;
+            tile.moveCostPenalty += moveCostEffect;
         }
     }
 
@@ -64,7 +73,7 @@ namespace TileAttributes {
 
     public class LandTileType : TileType {
         // TODO load from stats.xml
-        public static float tribeProb= 0.02f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "tribeProb"));
+        public static float tribeProb= 0.005f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "tribeProb"));
         public static float forestProb = 0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "forestProb"));
 
         public LandTileType(bool applyEffect) : base("Land Tile", applyEffect) {
@@ -82,12 +91,13 @@ namespace TileAttributes {
 
     public class WaterTileType : TileType {
         public WaterTileType(bool applyEffect, float waterLevelElevation) : base("Water Tile", applyEffect) {
+            this.moveCostEffect = float.MaxValue;
         }
         override
         public void applyEffect(Tile tile) {
             if (_applyEffect) {
                 // update temperature: compute at water level elevation and not at tile's elevation
-                tile.temperature = (HexRegion.computeTemperature(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0)));
+                tile.temperature = (HexRegion.computeTemperatureAtPos(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0)));
             }
         }
     }
@@ -96,28 +106,35 @@ namespace TileAttributes {
     // TILE ATTRIBUTES //
 
     public class Forestry : TileAttribute {
+
+        public static float moveCostPenaltyFactor = 2f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Forestry", "moveCostPenaltyFactor"));
+        public static float woodResourceFactor = 10f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Forestry", "woodResourceFactor"));
+
         public float forestryDensity { get; set; }
 
         public Forestry(float forestryDensity) : base("Forests", true) {
             this.forestryDensity = forestryDensity;
+            this.moveCostEffect = forestryDensity * moveCostPenaltyFactor;
         }
 
         override
         public string ToString() {
-            return this.tileAttributeInfo + " " + this.forestryDensity;
+            return tileAttributeInfo + " " + forestryDensity;
         }
 
         override
         public void applyEffect(Tile tile) {
             base.applyEffect(tile);
 
-            int beasts = (int)(Beasts.maxLevel * this.forestryDensity);
+            int beasts = (int)(Beasts.maxLevel * forestryDensity);
             if (beasts > 0)
                 tile.addTileAttribute(new Beasts(beasts));
 
-            int animals = (int)(Animals.maxLevel * this.forestryDensity);
+            int animals = (int)(Animals.maxLevel * forestryDensity);
             if (animals > 0)
                 tile.addTileAttribute(new Animals(animals));
+
+            tile.addTileAttribute(new WoodResource((int)(woodResourceFactor * forestryDensity)));
         }
     }
 

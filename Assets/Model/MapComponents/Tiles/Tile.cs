@@ -8,12 +8,15 @@ namespace Tiles {
 
         public Vector2 index { get; set; }
 
+        public bool dirty { get; set; }
+
         // tile properties
         public float fertility { get; set; }
         public float humidity { get; set; }
         public float temperature { get; set; }
         public float pollution { get; set; }
         public float danger { get; set; }
+        public float moveCostPenalty { get; set; } 
 
         public float elevationToWater { get; set; } // relative to water: negative when under water, else positive
 
@@ -31,7 +34,9 @@ namespace Tiles {
             this.temperature = 0;
             this.pollution = 0;
             this.danger = 0;
-            }
+            this.moveCostPenalty = 0;
+            this.dirty = true;
+        }
 
         public Tile(Vector3 pos, Vector2 index, TileType tileType) : this(pos, index) {
             this.setTileType(tileType);
@@ -46,6 +51,7 @@ namespace Tiles {
             s += "\nTemperature: " + this.temperature;
             s += "\nPollution: " + this.pollution;
             s += "\nDanger: " + this.danger;
+            s += "\nMove cost: " + this.moveCostPenalty;
             string tileAttrs = "\nTile Attributes:";
             foreach (TileAttribute ta in this.getTileAttributes()) {
                 tileAttrs += "\n" + ta;
@@ -79,31 +85,51 @@ namespace Tiles {
 
         // setters //
         public void setPos(Vector3 newpos) {
+            setDirty();
             pos = newpos;
         }
         public void setX(float x) {
+            setDirty();
             pos.x = x;
         }
         public void setY(float y) {
+            setDirty();
             pos.y = y;
         }
         public void setZ(float z) {
+            setDirty();
             pos.z = z;
         }
         public void setTileType(TileType tileType) {
+            setDirty();
             this.tileType = tileType;
             this.tileType.applyEffect(this);
         }
         public void addTileAttribute(TileAttribute tileAttribute) {
+            setDirty();
             this.tileType.addTileAttribute(tileAttribute);
             tileAttribute.applyEffect(this);
+        }
+        public void setDirty() {
+            this.dirty = true;
         }
     }
 
     public class HexTile : Tile {
 
+        public static Vector3 AxialToCubeCoord(Vector2 axial) {
+            return new Vector3(axial.x, axial.y, -axial.x - axial.y);
+        }
+
+        public static float distanceBetweenHexCoords(Vector2 a, Vector2 b) {
+            return distanceBetweenHexCoords(AxialToCubeCoord(a), AxialToCubeCoord(b));
+        }
+        public static float distanceBetweenHexCoords(Vector3 a, Vector3 b) {
+            return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z));
+        }
+
         // indexes for the Neighbors array
-        public enum Directions : int {
+        public enum Directions : byte {
             TopRight = 0,
             Right = 1,
             BottomRight = 2,

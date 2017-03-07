@@ -6,60 +6,65 @@ using UnityEngine;
 using TileAttributes;
 using Tiles;
 
+using Pathfinding;
+
 public static class RegionParams {
 
+    // the parameters below must be initialized during the setup of the region
+
     // temperature parameters
-    public static float worldAmbientTemperature;
-
-    public static float worldScale;
-    public static float worldCoreTemperature;
-    public static float midTempElevation;
-
-    public static float tanFalloffTemp;
-    public static float tanOffsetTemp;
-
-    public static float linFalloffTemp;
-
-    public static float latitudeFactorTemp;
+    public static float worldAmbientTemperature; // used by tileView to determine which trees to draw (cold vs temperate)
+    public static float worldCoreTemperature; // world's maximum temperature at elevation = 0
+    public static float worldScale; // higher world scale means slower decrease in temperature as latitude (z component) moves away from the origin (planet 'poles')
+    public static float midTempElevation; // elevation at the average of the temperature 
+    public static float tanFalloffTemp; // scales the influence of elevation on temperature (linear: higher means faster decrease) 
+    public static float tanOffsetTemp; // linear offset for atan function to start at ~0 and end at around ~1
+    public static float linFalloffTemp; // scales the influence of latitude (y) on temperature (linear: higher means faster decrease) 
+    public static float latitudeFactorTemp; // scales the influence of latitude (z) on temperature (exponential: higher means faster decrease)
 
     // other
-    public static float waterLevelElevation;
+    public static float waterLevelElevation; // elevation of water level
 
     // erosion parameters
-    public static float erosionWaterAmount;
-    public static float erosionStrength;
-    public static float erosionWaterLoss;
-    public static float earthStability;
-    public static float erosionVelocityElevationCap;
+    public static float erosionWaterAmount; // amount of water to deposit during erosion simulation: higher means more erosion
+    public static float erosionStrength; // scales the influence of erosion linearly (higher means more)
+    public static float erosionWaterLoss; // amount of water to lose after each simulation iteration: water[time k + 1] = erosionWaterLoss * water[time k]
+    public static float earthStability; // scales the influence of erosion on terrain movement (1 means terrain wont move, 0 means maximum terrain movement)
+    public static float erosionVelocityElevationCap; // limits the influence of elevation difference on terrain movement; acts as maximum elevaton difference after which terrain movement wont be affect as much
     public static int erosionIterations;
 
+    // feature parameters
+    public static float forestryProbability; // defines how many forest subregions the region will attempt to spawn
+    public static float forestryMaxSpread; // defines the maximum size of each forest subregion
+
+    // need to update the parameters to reflect region changes or updates
     public static void UpdateWorldGenerationParams(ViewableRegion region) {
         midTempElevation = region.getAverageElevation();
         tanOffsetTemp = midTempElevation * tanFalloffTemp;
         waterLevelElevation = region.getWaterLevelElevation();
     }
 
+    // initialize the region parameters
     public static void InitializeWorldGenerationParams(ViewableRegion region) {
-
-        // TODO read from xml file
-
+        // world temperature parameters
         worldAmbientTemperature = 45f;
-
-        worldScale = 500;
-        worldCoreTemperature = 125f;
-
+        worldScale = 100; 
+        worldCoreTemperature = 75f;
         tanFalloffTemp = 0.005f;
         linFalloffTemp = 0.025f;
-
         latitudeFactorTemp = 0.025f;
 
         // erosion parameters
         erosionWaterAmount = 10f;
-        erosionStrength = 0.75f;
-        erosionWaterLoss = 0.99f;
-        erosionIterations = 200;
+        erosionStrength = 2.25f;
+        erosionWaterLoss = 0.98f;
+        erosionIterations = 100;
         earthStability = 0.25f;
         erosionVelocityElevationCap = 50f;
+
+        // region features
+        forestryProbability = 0.1f;
+        forestryMaxSpread = 25f;
     }
 }
 
@@ -78,6 +83,8 @@ public class HexRegion : ViewableRegion {
 
     private float hexSize, hexHeight;
 
+    private float water;
+
     public HexRegion(int n, int seed, int region_size, int elevation, float water, int rivers, Noise noise) {
         this.n = n;
         this.seed = seed;
@@ -85,15 +92,26 @@ public class HexRegion : ViewableRegion {
         this.center = region_size / 2f;
         this.elevation = elevation;
         this.noise = noise;
+        this.water = water;
 
         RegionParams.InitializeWorldGenerationParams(this);
 
         CreateHexPositionVectors(this.n);
 
-        // compute elevation before erosion
         computeElevationParameters();
 
-        // TODO 
+        RegionParams.UpdateWorldGenerationParams(this);
+
+        computeTemperatures();
+
+        generateWaterTiles(this.water);
+
+        RegionParams.UpdateWorldGenerationParams(this);
+
+        Debug.Log("Generated Region with " + this.getViewableTiles().Count + "/" + this.n + " viewable tiles; hexsize " + this.hexSize + ", hexheight " + this.hexHeight);
+    }
+
+    public void updateRegion() {
         computeErosion(RegionParams.erosionWaterAmount, RegionParams.erosionStrength, RegionParams.erosionWaterLoss,
             RegionParams.earthStability, RegionParams.erosionVelocityElevationCap, RegionParams.erosionIterations);
         // RegionParams.UpdateWorldGenerationParams(this);
@@ -105,16 +123,11 @@ public class HexRegion : ViewableRegion {
 
         computeTemperatures();
 
-        // TODO
-        // computeHumidity()
-
-        generateWaterTiles(water);
+        generateWaterTiles(this.water);
 
         RegionParams.UpdateWorldGenerationParams(this);
 
         computeTileGeometry(); // compute hexagon positions
-
-        Debug.Log("Generated Region with " + this.getViewableTiles().Count + "/" + this.n + " viewable tiles; hexsize " + this.hexSize + ", hexheight " + this.hexHeight);
     }
 
     private void CreateHexPositionVectors(int n) {
@@ -135,11 +148,11 @@ public class HexRegion : ViewableRegion {
         HexTile.size = hexSize;
 
         Tile tile;
+        int i, j;
         // loop over X and Y in hex cube coordinatess
         for (int X = -this.gridRadius; X <= this.gridRadius; X++) {
             for (int Y = -this.gridRadius; Y <= this.gridRadius; Y++) {
 
-                int i, j;
                 i = X + this.gridRadius;
                 j = Y + this.gridRadius;
 
@@ -164,12 +177,6 @@ public class HexRegion : ViewableRegion {
         }
     }
 
-    private void computeTileGeometry() {
-        foreach (Tile tile in this.getViewableTiles()) {
-            tile.computeGeometry();
-        }
-    }
-
     // *** TILE POSITION COMPUTATIONS *** //
 
     public Tile getTileAt(Vector3 pos, out int[] index) {
@@ -189,7 +196,7 @@ public class HexRegion : ViewableRegion {
     public List<Tile> getTileNeighbors(Vector3 tilePos) {
         return getTileNeighbors(worldCoordToIndex(tilePos));
     }
-    public List<Tile> getTileNeighbors(Vector2 tileIndex) {
+    public List<Tile> getTileNeighbors(Vector2 tileIndex) { 
         List<Tile> neighbors = new List<Tile>();
         foreach (Vector2 dir in HexTile.Neighbors) {
             try {
@@ -233,7 +240,21 @@ public class HexRegion : ViewableRegion {
         return new Vector3(rx, ry, rz);
     }
 
-    // *** TEMPERATURE COMPUTATIONS *** //
+    // *** GEOMETRY COMPUTATIONS *** //
+
+    private void computeTileGeometry() {
+        foreach (Tile tile in this.getViewableTiles()) {
+            tile.computeGeometry();
+        }
+    }
+
+    // *** TILE FEATURES COMPUTATIONS *** //
+
+    private void plantForests() {
+        foreach (Tile tile in this.getViewableTiles()) {
+            List<Tile> neighbors = getTileNeighbors(tile.index);
+        }
+    }
 
     private void computeTemperatures() {
         foreach (Tile tile in this.getViewableTiles()) {
@@ -241,9 +262,10 @@ public class HexRegion : ViewableRegion {
         }
     }
     public static void computeTemperature(Tile tile) {
-        tile.temperature = (computeTemperature(tile.getPos()));
+        tile.temperature = (computeTemperatureAtPos(tile.getPos()));
     }
-    public static float computeTemperature(Vector3 tilePos) {
+
+    public static float computeTemperatureAtPos(Vector3 tilePos) {
         // elevation using atan
         float temperature = RegionParams.worldCoreTemperature * (1f - 1f / Mathf.PI * (Mathf.PI / 2f + Mathf.Atan(tilePos.y * RegionParams.tanFalloffTemp - RegionParams.tanOffsetTemp)));
         // elevation linear
@@ -257,15 +279,11 @@ public class HexRegion : ViewableRegion {
 
     private void computeErosion(float waterAmount, float strength, float waterLoss, float earthStability, float velocityElevationCap, int iterations) {
         float[,] waterVolumes = new float[this.tiles.GetLength(0), this.tiles.GetLength(0)];
-        erosionDepositWater(waterVolumes, waterAmount);
+        erosionDepositWaterRandom(waterVolumes, waterAmount, 0.1f);
         while (iterations-- > 0) {
             computeErosionIteration(waterVolumes, strength, waterLoss, earthStability, velocityElevationCap);
             computeTileGeometry();
-            Debug.Log("Iterations left " + iterations);
-        }
-        Utilities.normalize(waterVolumes);
-        foreach (Tile tile in this.getViewableTiles()) {
-            tile.humidity = waterVolumes[(int)tile.index.x, (int)tile.index.y];
+            //Debug.Log("Iterations left " + iterations);
         }
     }
 
@@ -286,8 +304,11 @@ public class HexRegion : ViewableRegion {
         for (int i = 0; i < this.tiles.GetLength(0); i++) {
             for (int j = 0; j < this.tiles.GetLength(0); j++) {
 
-                current = this.tiles[i, j];
+                // do not do anything for small water amounts
+                if (waterVolumes[i, j] < 1e-3)
+                    continue;
 
+                current = this.tiles[i, j];
                 if (current != null) {
                     // get tile neighbors
                     List<Tile> neighbors = getTileNeighbors(current.index);
@@ -349,13 +370,16 @@ public class HexRegion : ViewableRegion {
                             waterUpdated[(int)neighbor.index.x, (int)neighbor.index.y] += waterLossAmount;
 
                             // compute terrain elevation adjustment
-                            float terrainMovement = waterLossAmount / velocityElevationCap * (1f - earthStability) * elevationGradient[k].y;
+                            float terrainMovement = waterLossAmount / RegionParams.erosionWaterAmount * (1f - earthStability) * elevationGradient[k].y;
 
                             //Debug.Log("terrainMovement " + terrainMovement + " from " + current.index + " to " + neighbor.index);
 
                             // adjust elevations
                             current.setY(current.getY() - terrainMovement);
                             neighbor.setY(neighbor.getY() + terrainMovement);
+
+                            current.dirty = true;
+                            neighbor.dirty = true;
                         }
                     }
                 }
@@ -374,15 +398,11 @@ public class HexRegion : ViewableRegion {
     }
 
     private void erosionRemoveWater(float[,] waterVolumes, float erosionWaterLoss) {
-        //string str = "";
         for (int i = 0; i < this.tiles.GetLength(0); i++) {
-            //str += "\n";
             for (int j = 0; j < this.tiles.GetLength(0); j++) {
                 waterVolumes[i, j] *= erosionWaterLoss;
-                //str += ", " + waterVolumes[i, j];
             }
         }
-        //Debug.Log(str);
     }
 
     private void erosionDepositWater(float[,] waterVolumes, float waterAmount) {
@@ -390,6 +410,17 @@ public class HexRegion : ViewableRegion {
             for (int j = 0; j < this.tiles.GetLength(0); j++) {
                 if (this.tiles[i, j] != null)
                     waterVolumes[i, j] = waterAmount;
+                else
+                    waterVolumes[i, j] = 0;
+            }
+        }
+    }
+
+    private void erosionDepositWaterRandom(float[,] waterVolumes, float waterAmount, float probability) {
+        for (int i = 0; i < this.tiles.GetLength(0); i++) {
+            for (int j = 0; j < this.tiles.GetLength(0); j++) {
+                if (this.tiles[i, j] != null && UnityEngine.Random.Range(0f, 1f) < probability)
+                    waterVolumes[i, j] = UnityEngine.Random.Range(0f, waterAmount);
                 else
                     waterVolumes[i, j] = 0;
             }
