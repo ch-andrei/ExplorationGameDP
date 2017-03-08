@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+using Tiles;
 using Followers;
 using TileAttributes;
 
 public class Player : ViewablePlayer {
 
-    private Vector3 pos;
-    private int actionPoints, actionPointsLeft;
+    private Tile tilePos;
+
+    private int maxActionPoints, actionPoints;
     private int supplies;
     private List<Resource> resources;
     private List<Follower> followers;
@@ -18,7 +20,7 @@ public class Player : ViewablePlayer {
     private static float followerDeathThreshold = 1e-3f;
 
     public Player() {
-        this.pos = new Vector3();
+        this.tilePos = new HexTile(new Vector3(), new Vector2());
         this.resources = new List<Resource>();
         this.followers = new List<Follower>();
         initPlayer();
@@ -26,8 +28,8 @@ public class Player : ViewablePlayer {
 
     public void initPlayer() {
         this.supplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "supplies"));
-        this.actionPoints = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPoints"));
-        this.actionPointsLeft = this.actionPoints;
+        this.maxActionPoints = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPoints"));
+        this.actionPoints = this.maxActionPoints;
         this.moraleUp = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraleup"));
         this.moraleDown = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraledown"));
         addFollower(new Swordsman());
@@ -36,7 +38,7 @@ public class Player : ViewablePlayer {
     }
 
     public void newTurn() {
-        this.actionPointsLeft = this.actionPoints;
+        this.actionPoints = this.maxActionPoints;
         this.supplies -= getFoodConsumption();
         if (this.supplies < 0) this.supplies = 0;
         updateMorale();
@@ -93,18 +95,25 @@ public class Player : ViewablePlayer {
     public void addFollower(Follower f) {
         this.followers.Add(f);
     }
-    public void setPos(Vector3 pos) {
-        this.pos = pos;
+    public void setPos(Tile pos) {
+        this.tilePos = pos;
     }
 
-
     // getters
+    public Tile getPosTile() { 
+        return this.tilePos;
+    }
     public Vector3 getPos() {
-        resources = new List<Resource>();
-        return this.pos;
+        return this.tilePos.getPos();
+    }
+    public Vector2 getPosIndex() { 
+        return this.tilePos.index;
     }
     public int getActionPoints() {
         return this.actionPoints;
+    }
+    public int getMaxActionPoints() {
+        return this.maxActionPoints;
     }
     public List<Resource> getResources() {
         return this.resources;
@@ -134,8 +143,12 @@ public class Player : ViewablePlayer {
     }
 
     // actions
-    public bool attemptMove(Vector3 moveToPos, out string message) {
-        message = "";
+    public bool attemptedMove(Vector3 moveToPos, out string message) {
+        message = "Player move failed.";
+        if (getPos() == moveToPos) {
+            message = "Player move successful.";
+            return true;
+        }
         return false;
     }
     public bool changeCampStatus(out string message) {

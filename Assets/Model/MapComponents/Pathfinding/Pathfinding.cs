@@ -11,9 +11,12 @@ namespace Pathfinding {
     public class PathResult {
         public List<PathTile> pathTiles { get; }
         public List<PathTile> exploredPathTiles { get; }
+        public bool reachedGoal { get; set; }
+        public float pathCost { get; set; }
         public PathResult() {
             pathTiles = new List<PathTile>();
             exploredPathTiles = new List<PathTile>();
+            reachedGoal = false;
         }
         public List<Tile> getTiles() {
             List<Tile> tilesOnPath = new List<Tile>();
@@ -55,17 +58,17 @@ namespace Pathfinding {
 
     public abstract class PathFinder {
 
-        public static float upElevatonPerPoint = 2f;
-        public static float downElevatonPerPoint = 2.5f;
+        public static float upElevatonPerPoint = 3.5f;
+        public static float downElevatonPerPoint = 5f;
 
         // assumes the tiles are adjacent to each other
-        public static float costBetween(PathTile t1, PathTile t2) {
+        public virtual float costBetween(PathTile t1, PathTile t2) {
             float cost = 1f; // base cost between tiles
 
             // cost due to elevation
             float elevationDelta = (t2.tile.getY() - t1.tile.getY());
             if (elevationDelta < 0)
-                cost += elevationDelta / downElevatonPerPoint;
+                cost -= elevationDelta / downElevatonPerPoint;
             else
                 cost += elevationDelta / upElevatonPerPoint;
 
@@ -80,8 +83,9 @@ namespace Pathfinding {
 
     public abstract class HeuristicPathFinder : PathFinder{
 
-        public static float heuristicDepthInfluence = 0.0001f;
-        public int maxdepth = 50;
+        public static float heuristicDepthInfluence = 1e-3f; // nudges priorities for tie breaking
+        public int maxDepth = 50;
+        public float maxCost = 10f;
 
         // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
         public virtual PathResult pathFromTo(HexRegion region, Tile start, Tile goal, HeuristicPathFinder heuristic) {
@@ -92,6 +96,7 @@ namespace Pathfinding {
 
             // set up lists 
             PriorityQueue<PathTile> frontier = new PriorityQueue<PathTile>();
+            Dictionary<Vector2, PathTile> explored = new Dictionary<Vector2, PathTile>();
             Dictionary<Vector2, PathTile> previous = new Dictionary<Vector2, PathTile>();
             Dictionary<Vector2, float> costs = new Dictionary<Vector2, float>();
 
@@ -101,8 +106,8 @@ namespace Pathfinding {
             crt.depth = 0;
 
             frontier.Enqueue(crt, 0);
-            previous.Add(crt.tile.index, null);
-            costs.Add(crt.tile.index, 0);
+            previous[crt.tile.index] = null;
+            costs[crt.tile.index] = 0;
 
             // start pathfinding
             while (!frontier.IsEmpty()) {
@@ -110,9 +115,14 @@ namespace Pathfinding {
                 // get current 
                 crt = frontier.Dequeue();
 
+                // record that the tile was explored
+                explored[crt.tile.index] = crt;
+
                 if (crt.CompareTo(goalPt)) {
                     // reached goal
                     // search complete
+                    pathResult.reachedGoal = true;
+                    pathResult.pathCost = costs[crt.tile.index];
                     break;
                 }
 
@@ -130,31 +140,42 @@ namespace Pathfinding {
                 foreach (PathTile neighbor in neighbors) {
 
                     // check if exceeding max depth
-                    if (neighbor.depth > maxdepth) {
+                    if (neighbor.depth > maxDepth) {
                         break;
                     }
 
+                    // compute cost
                     cost = costs[crt.tile.index] + costBetween(crt, neighbor);
 
-                    if (!costs.ContainsKey(neighbor.tile.index) || cost < costs[neighbor.tile.index]) {
-                        costs[neighbor.tile.index] = cost;
-                        // compute heuristic priority
-                        priority = cost + heuristic.heuristic(neighbor, goalPt);
-                        priority -= neighbor.depth * heuristicDepthInfluence; // makes so that tiles closest to goal are more eagerly explored
-                        frontier.Enqueue(neighbor, priority);
-                        if (previous.ContainsKey(neighbor.tile.index))
+                    if (cost <= maxCost) {
+                        if (!costs.ContainsKey(neighbor.tile.index) || cost < costs[neighbor.tile.index]) {
+                            costs[neighbor.tile.index] = cost;
+
+                            // compute heuristic priority
+                            priority = cost + heuristic.heuristic(neighbor, goalPt);
+                            priority -= neighbor.depth * heuristicDepthInfluence; // makes so that tiles closest to goal are more eagerly explored
+
+                            frontier.Enqueue(neighbor, priority);
+
                             previous[neighbor.tile.index] = crt;
-                        else
-                            previous.Add(neighbor.tile.index, crt);
+                        }
                     }
+                        
                 }
             }
 
-            // build list of tiles on path
-            crt = previous[goal.index];
-            while (crt != null) {
-                pathResult.pathTiles.Add(crt);
-                crt = previous[crt.tile.index];
+            // build list of tiles on path if goal was reached
+            if (pathResult.reachedGoal) {
+                crt = previous[goal.index];
+
+                while (crt != null) {
+                    pathResult.pathTiles.Add(crt);
+                    crt = previous[crt.tile.index];
+                }
+            }
+
+            foreach (PathTile pt in explored.Values) {
+                pathResult.exploredPathTiles.Add(pt);
             }
 
             return pathResult;
@@ -167,7 +188,10 @@ namespace Pathfinding {
 
     public class AstarPathFinder : HeuristicPathFinder {
 
-        public AstarPathFinder() { }
+        public AstarPathFinder(int maxDepth = 50, float maxCost = 10f) {
+            base.maxDepth = maxDepth;
+            base.maxCost = maxCost;
+        }
 
         override
         public float heuristic(PathTile start, PathTile goal) {
@@ -188,7 +212,10 @@ namespace Pathfinding {
 
     public class DijkstraPathFinder : HeuristicPathFinder {
 
-        public DijkstraPathFinder() { }
+        public DijkstraPathFinder(int maxDepth = 50, float maxCost = 10f) {
+            base.maxDepth = maxDepth;
+            base.maxCost = maxCost;
+        }
 
         override
         public float heuristic(PathTile start, PathTile goal) {
@@ -198,6 +225,20 @@ namespace Pathfinding {
         override
         public PathResult pathFromTo(HexRegion region, Tile start, Tile goal) {
             return base.pathFromTo(region, start, goal, this);
+        }
+    }
+
+    public class DijkstraUniformCostPathFinder : DijkstraPathFinder {
+
+        float uniformCost;
+
+        public DijkstraUniformCostPathFinder(int maxDepth = 50, float maxCost = 10f, float uniformCost = 1f) : base(maxDepth, maxCost) {
+            this.uniformCost = uniformCost;
+        }
+
+        override
+        public float costBetween(PathTile t1, PathTile t2) {
+            return uniformCost;
         }
     }
 

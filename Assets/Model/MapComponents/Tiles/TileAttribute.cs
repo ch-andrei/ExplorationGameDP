@@ -85,6 +85,7 @@ namespace TileAttributes {
                     tile.addTileAttribute(new Forestry((float)Math.Pow(UnityEngine.Random.Range(0f, 1f), 2))); // random pow 5 to scale for less forests overall
                 if (UnityEngine.Random.Range(0f,1f) < tribeProb)
                     tile.addTileAttribute(new LocalTribe(UnityEngine.Random.Range(0, LocalTribe.maxLevel)));
+                base.applyEffect(tile);
             }
         }
     }
@@ -98,6 +99,7 @@ namespace TileAttributes {
             if (_applyEffect) {
                 // update temperature: compute at water level elevation and not at tile's elevation
                 tile.temperature = (HexRegion.computeTemperatureAtPos(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0)));
+                base.applyEffect(tile);
             }
         }
     }
@@ -221,6 +223,7 @@ namespace TileAttributes {
 
         override
         public void applyEffect(Tile tile) {
+            base.applyEffect(tile);
             // TODO add to some tile properties
         }
     }

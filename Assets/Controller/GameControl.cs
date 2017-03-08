@@ -41,16 +41,52 @@ public class GameControl : MonoBehaviour {
     int counter = 0;
 
     public void Update() {
-        // placeholder turn counter
-        // make new turn every 100 frames
-        if (counter++ > 100) {
-            counter = 0;
-            gameSession.newTurn();
-        }
+        // TODO 
+        // do something about the game status
     }
 
     public void setPreset(string preset) {
         mgi.preset = preset;
+    }
+
+    public Color hexToColor(string hex) {
+        return Utilities.hexToColor(hex);
+    }
+
+    int playerInfoWidth = 400;
+    int playerInfoHeight = 200;
+    // shows region stats
+    void OnGUI() {
+
+        GUILayout.BeginVertical();
+        {
+            string[] names = QualitySettings.names;
+            int i = 0;
+            while (i < names.Length) {
+                if (GUILayout.Button(names[i]))
+                    QualitySettings.SetQualityLevel(i, true);
+
+                i++;
+            }
+
+            if (GUILayout.Button("View update")) {
+                mapView.redraw();
+            }
+
+            if (GUILayout.Button("Region update")) {
+                gameSession.mapGenerator.getRegion().updateRegion();
+            }
+
+            if (GUILayout.Button("New turn")) {
+                gameSession.player.newTurn();
+            }
+        }
+        GUILayout.EndVertical();
+
+        GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight), 
+            "Player info:\nPosition: " + gameSession.player.getPos() + "\nCoordinates: " + gameSession.player.getPosIndex() + "\nAction points: " + gameSession.player.getActionPoints() + "\nStrength: " +
+            gameSession.player.computeStrength() + "\nMorale: " + gameSession.player.computeMorale() + "\nSupplies: " + gameSession.player.getSupplies() + 
+            "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + "\nFollowers:\n" + gameSession.player.getFollowersAsString());
     }
 
     private void OnDrawGizmos() {
@@ -122,42 +158,6 @@ public class GameControl : MonoBehaviour {
         }
     }
 
-    public Color hexToColor(string hex) {
-        return Utilities.hexToColor(hex);
-    }
-
-    int playerInfoWidth = 400;
-    int playerInfoHeight = 200;
-    // shows region stats
-    void OnGUI() {
-
-        GUILayout.BeginVertical();
-        {
-            string[] names = QualitySettings.names;
-            int i = 0;
-            while (i < names.Length) {
-                if (GUILayout.Button(names[i]))
-                    QualitySettings.SetQualityLevel(i, true);
-
-                i++;
-            }
-
-            if (GUILayout.Button("view update")) {
-                mapView.redraw();
-            }
-
-            if (GUILayout.Button("region update")) {
-                gameSession.mapGenerator.getRegion().updateRegion();
-            }
-        }
-        GUILayout.EndVertical();
-
-        GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight), 
-            "Player info:\nPosition: " + gameSession.player.getPos() + "\nAction points: " + gameSession.player.getActionPoints() + "\nStrength: " +
-            gameSession.player.computeStrength() + "\nMorale: " + gameSession.player.computeMorale() + "\nSupplies: " + gameSession.player.getSupplies() + 
-            "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + "\nFollowers:\n" + gameSession.player.getFollowersAsString());
-    }
-
     // http://answers.unity3d.com/questions/357033/unity3d-and-c-coroutines-vs-threading.html
     public class ThreadedJob {
         private bool m_IsDone = false;
@@ -209,7 +209,6 @@ public class GameControl : MonoBehaviour {
     }
 
     public class Job : ThreadedJob {
-
 
     }
 }

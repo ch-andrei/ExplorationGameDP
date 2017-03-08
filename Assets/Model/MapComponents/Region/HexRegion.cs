@@ -48,10 +48,10 @@ public static class RegionParams {
     public static void InitializeWorldGenerationParams(ViewableRegion region) {
         // world temperature parameters
         worldAmbientTemperature = 45f;
-        worldScale = 100; 
+        worldScale = region.getViewableSize() / 50; 
         worldCoreTemperature = 75f;
-        tanFalloffTemp = 0.005f;
-        linFalloffTemp = 0.025f;
+        tanFalloffTemp = 0.01f;
+        linFalloffTemp = 0.05f;
         latitudeFactorTemp = 0.025f;
 
         // erosion parameters
@@ -177,26 +177,33 @@ public class HexRegion : ViewableRegion {
         }
     }
 
-    // *** TILE POSITION COMPUTATIONS *** //
+    // *** TILE POSITION COMPUTATIONS AND GETTERS *** //
 
-    public Tile getTileAt(Vector3 pos, out int[] index) {
-        Vector3 v = worldCoordToIndex(pos.x, pos.z);
+    public Tile getTileAt(Vector2 pos) {
+        Vector2 index = worldCoordToIndex(pos);
         int i, j;
-        i = (int)v.x + this.gridRadius;
-        j = (int)v.y + this.gridRadius;
+        i = (int)index.x + this.gridRadius;
+        j = (int)index.y + this.gridRadius;
         //Debug.Log(i + ", " + j);
         if (i < 0 || j < 0 || i >= tiles.GetLength(0) || j >= tiles.GetLength(0)) {
-            index = null;
             return null;
         }
-        index = new int[] { i, j };
         return this.tiles[i, j];
+    }
+    public Tile getTileAt(Vector3 pos) {
+        return getTileAt(new Vector2(pos.x, pos.z));
+    }
+    // writes index of the tile to the 'out' parameter
+    public Tile getTileAt(Vector3 pos, out int[] index) {
+        Tile tile = getTileAt(pos);
+        index = new int[] { (int)tile.index.x, (int)tile.index.y };
+        return tile;
     }
 
     public List<Tile> getTileNeighbors(Vector3 tilePos) {
         return getTileNeighbors(worldCoordToIndex(tilePos));
     }
-    public List<Tile> getTileNeighbors(Vector2 tileIndex) { 
+    public List<Tile> getTileNeighbors(Vector2 tileIndex) {
         List<Tile> neighbors = new List<Tile>();
         foreach (Vector2 dir in HexTile.Neighbors) {
             try {
@@ -213,6 +220,9 @@ public class HexRegion : ViewableRegion {
 
     private Vector2 worldCoordToIndex(Vector2 pos) {
         return worldCoordToIndex(pos.x, pos.y);
+    }
+    private Vector2 worldCoordToIndex(Vector3 pos) {
+        return worldCoordToIndex(pos.x, pos.z);
     }
     private Vector2 worldCoordToIndex(float x, float y) {
         float q = (x) * 2f / 3f / this.hexSize;
@@ -251,8 +261,11 @@ public class HexRegion : ViewableRegion {
     // *** TILE FEATURES COMPUTATIONS *** //
 
     private void plantForests() {
+
+        DijkstraPathFinder dijkstra;
+
         foreach (Tile tile in this.getViewableTiles()) {
-            List<Tile> neighbors = getTileNeighbors(tile.index);
+            
         }
     }
 
@@ -533,5 +546,8 @@ public class HexRegion : ViewableRegion {
     }
     public long getViewableSeed() {
         return this.seed;
+    }
+    public int getMaxTileIndex() {
+        return this.tiles.GetLength(0);
     }
 }

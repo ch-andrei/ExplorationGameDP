@@ -8,6 +8,8 @@ using Tiles;
 
 public class MapView : MonoBehaviour {
 
+    public int updatesPerFrame = 5;
+
     // states for redrawing the views
     public enum States { notupdated, destroyQueued, destroying, destroyed, setupQueued, settingup, setupDone, updated};
 
@@ -37,7 +39,7 @@ public class MapView : MonoBehaviour {
     public static Vector3 viewCenterPoint;
 
     // up until how far from viewCenterPoint tiles will still be drawn
-    public static float drawDistance = 300f;
+    public static float drawDistance = 500f;
 
     // customize in editor
     // tree parameters
@@ -50,7 +52,6 @@ public class MapView : MonoBehaviour {
     private List<TileView> drawnTiles;
 
     // redraw world every 10 frames
-    static int secondsBetweenUpdates = 1; // TODO read from xml
     DateTime lastRedrawCallComplete;
 
     private void Awake() {
@@ -110,6 +111,8 @@ public class MapView : MonoBehaviour {
 
         Vector3 childPos, distanceToChild;
         // loop over children TileViews
+
+        int yieldCounter = updatesPerFrame;
         for (int i = 0; i < drawnTiles.Count; i++) {
 
             drawnTile = drawnTiles[i];
@@ -134,8 +137,12 @@ public class MapView : MonoBehaviour {
                 // readjust i to account for removing an item from the list
                 i--;
             }
-            
-            yield return null;
+
+            if (yieldCounter-- < 0) {
+                yieldCounter = updatesPerFrame;
+                yield return null;
+            }
+           
         }
 
         // update state
@@ -146,6 +153,7 @@ public class MapView : MonoBehaviour {
 
         List<Tile> tiles = GameControl.gameSession.mapGenerator.getRegion().getViewableTiles();
 
+        int yieldCounter = updatesPerFrame;
         foreach (Tile tile in tiles) {
 
             // get tiles position
@@ -194,7 +202,10 @@ public class MapView : MonoBehaviour {
                     drawnTiles.Add(tileView);
 
                     // wait a little
-                    yield return null;
+                    if (yieldCounter-- < 0) {
+                        yieldCounter = updatesPerFrame;
+                        yield return null;
+                    }
                 }
             }
         }

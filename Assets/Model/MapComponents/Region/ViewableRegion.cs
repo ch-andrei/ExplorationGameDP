@@ -12,7 +12,10 @@ public interface ViewableRegion {
     int computeMaximumElevation();
     int getViewableSize();
     long getViewableSeed();
-    Tile getTileAt(Vector3 position, out int[] index);
+    int getMaxTileIndex();
+    Tile getTileAt(Vector3 pos, out int[] index);
+    Tile getTileAt(Vector3 pos);
+    Tile getTileAt(Vector2 index);
     List<Tile> getTileNeighbors(Vector3 tilePos);
     List<Tile> getTileNeighbors(Vector2 index);
     void updateRegion();

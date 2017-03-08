@@ -16,12 +16,12 @@
             <n>10000</n>
             <seed>0</seed>
             <region_size>5000</region_size>
-            <elevation>700</elevation>
+            <elevation>1000</elevation>
             <rivers>0</rivers>
             <water>0.65</water>
             <noise_resolution>200</noise_resolution>
             <noise_amplitude>0.7</noise_amplitude>
-            <noise_persistance>0.65</noise_persistance>
+            <noise_persistance>0.75</noise_persistance>
         </default>
 
         <amplified>

@@ -4,6 +4,7 @@ using UnityEngine;
 using TileAttributes;
 
 namespace Tiles {
+
     public abstract class Tile {
 
         public Vector2 index { get; set; }
@@ -60,7 +61,6 @@ namespace Tiles {
             return s;
         }
 
-
         // getters //
         public Vector3 getPos() {
             return pos;
@@ -82,6 +82,13 @@ namespace Tiles {
         }
         public abstract Vector3[] getGeometry();
         public abstract void computeGeometry();
+
+        public bool Equals(Tile tile) {
+            if (this.index == tile.index)
+                return true;
+            else
+                return false;
+        }
 
         // setters //
         public void setPos(Vector3 newpos) {

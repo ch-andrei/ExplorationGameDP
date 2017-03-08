@@ -2,12 +2,17 @@
 using System.Collections.Generic;
 
 using TileAttributes;
+using Tiles;
 
 public interface ViewablePlayer {
 
     // getters
     Vector3 getPos();
+    Tile getPosTile();
+    Vector2 getPosIndex();
+
     int getActionPoints();
+    int getMaxActionPoints();
     List<Resource> getResources();
     int getSupplies();
     bool getCampStatus(out string message);
@@ -15,10 +20,11 @@ public interface ViewablePlayer {
     bool getPossibleUpgrades(out string message);
 
     // setters
-    void setPos(Vector3 pos);
+    void setPos(Tile pos);
+    void loseActionPoints(int actionPointsToLose);
 
     // actions
-    bool attemptMove(Vector3 moveToPos, out string message);
+    bool attemptedMove(Vector3 moveToPos, out string message);
     bool changeCampStatus(out string message);
     bool doQuest(out string message);
     bool doUpgrade(out string message);
