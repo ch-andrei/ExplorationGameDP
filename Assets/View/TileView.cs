@@ -177,6 +177,9 @@ namespace TileViews {
                             // preserve prefab scale
                             tree.transform.localScale = t.localScale;
 
+                            float randRotation = Random.Range(0f, 360f);
+                            tree.transform.Rotate(0, randRotation, 0);
+
                             tileDecorations.Add(tree);
                         }
                     }
@@ -207,7 +210,7 @@ namespace TileViews {
                     // preserve prefab scale
                     village.transform.localScale = t.localScale;
 
-                    float randRotation = Random.Range(0f, 180f);
+                    float randRotation = Random.Range(0f, 360f);
                     village.transform.Rotate(0, randRotation, 0);
 
                     tileDecorations.Add(village);

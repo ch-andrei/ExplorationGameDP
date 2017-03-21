@@ -12,7 +12,13 @@ public class CameraControl : MonoBehaviour {
 
     static float viewCenterOffset = 200f;
 
-    static int cameraLimitDistance = 15000;
+    static int cameraLimitDistance = 2500;
+    static int cameraToGroundOffset = 75;
+    static int maxCameraToGroundDistance = 250;
+
+    static float limiterInertia = 0.1f;
+    static float cameraTooHighLimiterSpeed = 1.5f;
+    static float cameraTooLowLimiterSpeed = 2.5f;
 
     static float global_sensitivity = 1F;
 
@@ -95,11 +101,11 @@ public class CameraControl : MonoBehaviour {
         viewCenterPoint = cameraPos + cameraDir.normalized * viewCenterOffset;
 
         // COMPUTE MOVEMENT
-        if (yaw.isActivated()) {
+        if (yaw.isActivated()) { // camera rotate left/right
             float rotationX = Input.GetAxis(keyboardAxesNames[(int)yaw.keyboardAxis]) * yaw.sensitivity;
             transform.Rotate(0, rotationX, 0, Space.World);
         }
-        if (pitch.isActivated()) {
+        if (pitch.isActivated()) { // camera rotate up/down
             float rotationY = Input.GetAxis(keyboardAxesNames[(int)pitch.keyboardAxis]) * pitch.sensitivity;
             transform.Rotate(-rotationY, 0, 0);
         }
@@ -109,24 +115,26 @@ public class CameraControl : MonoBehaviour {
         //}
         if (verticalTranslation.isActivated()) {
             float translateY = Input.GetAxis(keyboardAxesNames[(int)verticalTranslation.keyboardAxis]) * verticalTranslation.sensitivity;
-            transform.Translate(0, translateY, 0);
+            transform.Translate(0, translateY, 0, Space.World);
         }
         if (horizontalTranslation.isActivated()) {
-            float translateX = Input.GetAxis(keyboardAxesNames[(int)horizontalTranslation.keyboardAxis]) * horizontalTranslation.sensitivity;
-            transform.Translate(translateX, 0, 0);
-            
+            Vector3 direction = transform.right;
+            direction.y = 0;
+            direction.Normalize();
+            transform.Translate(Input.GetAxis(keyboardAxesNames[(int)horizontalTranslation.keyboardAxis]) * horizontalTranslation.sensitivity * direction, Space.World);    
         }
-        if (depthTranslation.isActivated()) {
+        if (depthTranslation.isActivated()) { // camera move forward/backword
             Vector3 direction = transform.forward;
             direction.y = 0;
             direction.Normalize();
-            transform.Translate(depthTranslation.sensitivity * direction * Input.GetAxis(keyboardAxesNames[(int)depthTranslation.keyboardAxis]), Space.World);
+            transform.Translate(Input.GetAxis(keyboardAxesNames[(int)depthTranslation.keyboardAxis]) * depthTranslation.sensitivity * direction, Space.World);
         }
 
         limitCamera();
     }
 
     public void limitCamera() {
+        // check if camera is out of bounds 
         Vector3 posRelative = transform.position - restrictionCenterPoint;
         if (posRelative.x > cameraLimitDistance) {
             transform.position -= new Vector3(posRelative.x - cameraLimitDistance, 0, 0);
@@ -138,5 +146,29 @@ public class CameraControl : MonoBehaviour {
         } else if (posRelative.z < -cameraLimitDistance) {
             transform.position -= new Vector3(0, 0, posRelative.z + cameraLimitDistance);
         }
+        // adjust camera height based on terrain
+        try {
+            Vector3 tileBelow = GameControl.gameSession.mapGenerator.getRegion().getTileAt(transform.position).getPos();
+            float waterLevel = GameControl.gameSession.mapGenerator.getRegion().getWaterLevelElevation();
+
+            float heightAboveGround =  transform.position.y - (tileBelow.y) - cameraToGroundOffset;
+            float heightAboveWater = transform.position.y - (waterLevel) - cameraToGroundOffset;
+            float heightBelowCeiling = tileBelow.y + maxCameraToGroundDistance - (transform.position.y);
+
+            if (heightAboveGround < 0) { // camera too low based on tile height
+                transform.position -= new Vector3(0, heightAboveGround, 0) * limiterInertia * cameraTooLowLimiterSpeed;
+            } else if (heightAboveWater < 0) { // camera too low based on water elevation
+                transform.position -= new Vector3(0, heightAboveWater, 0) * limiterInertia * cameraTooLowLimiterSpeed;
+            } else if (heightBelowCeiling < 0) { // camera too high 
+                transform.position += new Vector3(0, heightBelowCeiling, 0) * limiterInertia * cameraTooHighLimiterSpeed;
+            }
+        } catch (NullReferenceException e) {
+            // do nothing
+        }
+        
+    }
+
+    public void centerOnPlayer() {
+        // TODO
     }
 }

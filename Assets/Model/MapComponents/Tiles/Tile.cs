@@ -46,7 +46,9 @@ namespace Tiles {
         override
         public string ToString() {
             string s = "";
-            s += "Type:" + this.getTileType();
+            s += "Position: " + getPos();
+            s += "\nCoordinate: [" + (int)(index.x) + ", " + (int)(index.y) + "]";
+            s += "\nType:" + this.getTileType();
             s += "\nFertility: " + this.fertility;
             s += "\nHumidity: " + this.humidity;
             s += "\nTemperature: " + this.temperature;

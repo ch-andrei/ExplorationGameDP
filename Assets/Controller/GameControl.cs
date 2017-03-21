@@ -53,28 +53,42 @@ public class GameControl : MonoBehaviour {
         return Utilities.hexToColor(hex);
     }
 
+    // GUI stuff
     int playerInfoWidth = 400;
     int playerInfoHeight = 200;
-    // shows region stats
+    bool showMenu = false;
+
     void OnGUI() {
 
         GUILayout.BeginVertical();
         {
-            string[] names = QualitySettings.names;
-            int i = 0;
-            while (i < names.Length) {
-                if (GUILayout.Button(names[i]))
-                    QualitySettings.SetQualityLevel(i, true);
-
-                i++;
+            if (showMenu) {
+                if (GUILayout.Button("Hide Menu")) 
+                    showMenu = !showMenu;
+                string[] names = QualitySettings.names;
+                int i = 0;
+                while (i < names.Length) {
+                    if (GUILayout.Button(names[i]))
+                        QualitySettings.SetQualityLevel(i, true);
+                    i++;
+                }
+            } else if (GUILayout.Button("Show Menu")) {
+                showMenu = !showMenu;
             }
 
-            if (GUILayout.Button("View update")) {
-                mapView.redraw();
+            string camp_status;
+            if (gameSession.player.getCampStatus()) {
+                if (GUILayout.Button("Leave Encampment")) {
+                    gameSession.player.changeCampStatus(out camp_status);
+                }
+            } else {
+                if (GUILayout.Button("Build Encampment")) {
+                    gameSession.player.changeCampStatus(out camp_status);
+                }
             }
-
-            if (GUILayout.Button("Region update")) {
-                gameSession.mapGenerator.getRegion().updateRegion();
+            
+            if (GUILayout.Button("Move player")) {
+                MouseControl.changeMoveMode();
             }
 
             if (GUILayout.Button("New turn")) {
@@ -84,11 +98,19 @@ public class GameControl : MonoBehaviour {
         GUILayout.EndVertical();
 
         GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight), 
-            "Player info:\nPosition: " + gameSession.player.getPos() + "\nCoordinates: " + gameSession.player.getPosIndex() + "\nAction points: " + gameSession.player.getActionPoints() + "\nStrength: " +
-            gameSession.player.computeStrength() + "\nMorale: " + gameSession.player.computeMorale() + "\nSupplies: " + gameSession.player.getSupplies() + 
-            "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + "\nFollowers:\n" + gameSession.player.getFollowersAsString());
+            "Player info:\nPosition: " + gameSession.player.getPos() + 
+            "\nCoordinates: " + gameSession.player.getPosIndex() + 
+            "\nEncampment: " + gameSession.player.getCampStatus() + 
+            "\nAction points: " + gameSession.player.getActionPoints() + 
+            "\nStrength: " + gameSession.player.computeStrength() + 
+            "\nMorale: " + gameSession.player.computeMorale() + 
+            "\nSupplies: " + gameSession.player.getSupplies() + 
+            "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + 
+            "\nFollowers:\n" + gameSession.player.getFollowersAsString()
+            );
     }
 
+    // DEPRECATED
     private void OnDrawGizmos() {
         if (!drawGizmos || gameSession == null || gameSession.mapGenerator == null) {
             return;

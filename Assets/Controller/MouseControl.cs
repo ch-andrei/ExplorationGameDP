@@ -12,23 +12,25 @@ using System.Collections;
 public class MouseControl : MonoBehaviour {
 
     int menuWidth = 200;
-    int menuHeight = 250;
+    int menuHeight = 300;
 
     static bool selectionOrder = true;
+    static bool moveMode = false;
 
-    static Tile currentSelectedTile, firstClickedTile, secondClickedTile;
-    static int[] currentSelectedIndex, firstClickedIndex, secondClickedIndex;
+    static Tile mouseOverTile, selectedTile, firstClickedTile, secondClickedTile;
+    static int[] currentSelectedIndex;
+    static Vector3 ySelectionOffset = new Vector3(0, 5, 0);
 
     static GUIStyle guiStyle;
 
     // selection game object
-    GameObject selectionIndicator;
+    GameObject mouseOverIndicator, selectionTileIndicator;
 
     // path related game objects
     GameObject pathIndicator;
     GameObject pathExploredIndicator;
 
-    PathFinder DijsktraPF;
+    PathFinder DijsktraPF, AstarPF;
 
     PathResult pathResult;
 
@@ -38,10 +40,8 @@ public class MouseControl : MonoBehaviour {
 
         // setup all vars
 
-        firstClickedIndex = new int[2];
-        secondClickedIndex = new int[2];
-
-        selectionIndicator = GameObject.FindGameObjectWithTag("SelectionIndicator");
+        mouseOverIndicator = GameObject.FindGameObjectWithTag("MouseOverIndicator");
+        selectionTileIndicator = GameObject.FindGameObjectWithTag("SelectionTileIndicator");
         pathIndicator = GameObject.FindGameObjectWithTag("PathIndicator");
         pathExploredIndicator = GameObject.FindGameObjectWithTag("PathExploredIndicator");
         
@@ -49,16 +49,21 @@ public class MouseControl : MonoBehaviour {
         guiStyle = new GUIStyle();
         guiStyle.alignment = TextAnchor.LowerLeft;
         guiStyle.normal.textColor = Utilities.hexToColor("#153870");
+
+        AstarPF = new AstarPathFinder(maxDepth: 50, maxCost: 50, maxIncrementalCost: GameControl.gameSession.player.getMaxActionPoints());
+        DijsktraPF = new DijkstraPathFinder(maxDepth: GameControl.gameSession.player.getMaxActionPoints(), 
+                                            maxCost: GameControl.gameSession.player.getActionPoints(),
+                                            maxIncrementalCost: GameControl.gameSession.player.getMaxActionPoints()
+                                            );
     }
 
-    void Awake() { }
+    void Awake() {
+        
+    }
 
     void Update() {
 
-        DijsktraPF = new DijkstraPathFinder(
-                        maxDepth: GameControl.gameSession.player.getMaxActionPoints(),
-                        maxCost: GameControl.gameSession.player.getActionPoints()
-                        );
+        /// *** RAYCASTING FOR SELECTING TILES PART *** ///
 
         // update selection tile
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -68,72 +73,93 @@ public class MouseControl : MonoBehaviour {
             if (hitObject == null) {
                 // nothing to do
             } else {
-                if ((currentSelectedTile = GameControl.gameSession.mapGenerator.getRegion().getTileAt(hitInfo.point, out currentSelectedIndex)) != null) {
-                    selectionIndicator.transform.position = currentSelectedTile.getPos(); // move selection indicator
+                if ((mouseOverTile = GameControl.gameSession.mapGenerator.getRegion().getTileAt(hitInfo.point, out currentSelectedIndex)) != null) {
+                    mouseOverIndicator.transform.position = mouseOverTile.getPos() + ySelectionOffset; // move mouseOverIndicator
                 } else {
                     // do nothing
                 }
             }
         }
 
-        // draw move range
-        StartCoroutine(
-            displayPath(
-                DijsktraPF.pathFromTo(
-                    GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
-                    GameControl.gameSession.player.getPosTile(),
-                    new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue))),
-                writeToGlobalPathResult: false,
-                displayTimeInSeconds: 0.1f,
-                drawExplored: true));
-
-        // *** mouse controls *** //
-
         // left click
         bool leftMouseClick = Input.GetMouseButtonDown(0);
-        if (leftMouseClick) {
-            // TODO some player controls
+        if (leftMouseClick && mouseOverTile != null) {
+            selectionTileIndicator.transform.position = mouseOverTile.getPos() + ySelectionOffset; // move selectionTileIndicator
+            selectedTile = mouseOverTile;
         }
 
-        // right click
-        bool rightMouseClick = Input.GetMouseButtonDown(1);
-        if (rightMouseClick && currentSelectedIndex != null) {
-            if (selectionOrder) {
-                firstClickedTile = currentSelectedTile;
-                currentSelectedIndex.CopyTo(firstClickedIndex, 0);
-            } else {
-                secondClickedTile = currentSelectedTile;
-                currentSelectedIndex.CopyTo(secondClickedIndex, 0);
+        /// *** PATHFINDING PART *** ///
+        if (moveMode) {
+            DijsktraPF.maxDepth = GameControl.gameSession.player.getMaxActionPoints();
+            DijsktraPF.maxCost = GameControl.gameSession.player.getActionPoints();
 
-                // check if right clicked same tile twice
-                if (firstClickedTile.Equals(secondClickedTile)) {
-                    pathResult = GameControl.gameSession.playerAttemptMove(firstClickedTile, out attemptedMoveMessage, movePlayer: true);
-                    StartCoroutine(displayPath(pathResult));
-                } else {
-                    // clicked another tile: overwrite first selection
-                    firstClickedTile = currentSelectedTile;
-                    currentSelectedIndex.CopyTo(firstClickedIndex, 0);
-
-                    // flip selection order an extra time
-                    selectionOrder = !selectionOrder;
-                }
-            }
-            // flip selection order
-            selectionOrder = !selectionOrder;
-        }
-
-        if (firstClickedTile != null) {
-            // draw move path
+            // draw move range
             StartCoroutine(
                 displayPath(
                     DijsktraPF.pathFromTo(
                         GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
                         GameControl.gameSession.player.getPosTile(),
-                        firstClickedTile),
+                        new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue))),
                     writeToGlobalPathResult: false,
                     displayTimeInSeconds: 0.1f,
-                    drawExplored: false));
+                    drawExplored: true));
+
+            // draw path to selected tile
+            if (mouseOverTile != null)
+                StartCoroutine(
+                    displayPath(
+                         AstarPF.pathFromTo(
+                             GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
+                             GameControl.gameSession.player.getPosTile(),
+                             mouseOverTile),
+                         writeToGlobalPathResult: false,
+                         displayTimeInSeconds: 0.1f,
+                         drawExplored: false));
+
+            // *** MOUSE CLICKS CONTROL PART *** //
+
+            // right click
+            bool rightMouseClick = Input.GetMouseButtonDown(1);
+            if (rightMouseClick && currentSelectedIndex != null) {
+                if (selectionOrder) {
+                    firstClickedTile = mouseOverTile;
+                    // draw path using A* pathfinder (not Dijkstra) for faster performance
+                } else {
+                    secondClickedTile = mouseOverTile;
+
+                    // check if right clicked same tile twice
+                    if (firstClickedTile.Equals(secondClickedTile)) {
+                        pathResult = GameControl.gameSession.playerAttemptMove(firstClickedTile, out attemptedMoveMessage, movePlayer: true);
+                        StartCoroutine(displayPath(pathResult));
+                    } else {
+                        // clicked another tile: overwrite first selection
+                        firstClickedTile = mouseOverTile;
+
+                        // flip selection order an extra time
+                        selectionOrder = !selectionOrder;
+                    }
+                }
+                // flip selection order
+                selectionOrder = !selectionOrder;
+            }
+
+            if (firstClickedTile != null) {
+                // draw move path
+                StartCoroutine(
+                    displayPath(
+                        DijsktraPF.pathFromTo(
+                            GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
+                            GameControl.gameSession.player.getPosTile(),
+                            firstClickedTile),
+                        writeToGlobalPathResult: false,
+                        displayTimeInSeconds: 0.1f,
+                        drawExplored: false));
+            }
         }
+    }
+
+    public static void changeMoveMode() {
+        moveMode = !moveMode;
     }
 
     // FOR DEBUGGING PURPOSES
@@ -162,7 +188,7 @@ public class MouseControl : MonoBehaviour {
             foreach (Tile tile in pr.getTiles()) {
                 GameObject _pathIndicator = Instantiate(pathIndicator);
                 _pathIndicator.transform.parent = this.transform;
-                _pathIndicator.transform.position = tile.getPos();
+                _pathIndicator.transform.position = tile.getPos() + ySelectionOffset;
                 _pathIndicators.Add(_pathIndicator);
             }
 
@@ -171,7 +197,7 @@ public class MouseControl : MonoBehaviour {
                 foreach (Tile tile in pr.getExploredTiles()) {
                     GameObject _exploredIndicator = Instantiate(pathExploredIndicator);
                     _exploredIndicator.transform.parent = this.transform;
-                    _exploredIndicator.transform.position = tile.getPos();
+                    _exploredIndicator.transform.position = tile.getPos() + ySelectionOffset;
                     _exploredIndicators.Add(_exploredIndicator);
                 }
             }
@@ -192,16 +218,16 @@ public class MouseControl : MonoBehaviour {
     }
 
     void OnGUI() {
+        if (selectedTile != null) {
+            string currentSelection = selectedTile.ToString();
+            GUI.Box(new Rect(Screen.width - menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), currentSelection);
+        }
         if (firstClickedTile != null) {
-            string leftSelection = "First tile\nPosition: " + firstClickedTile.getPos() +
-                "\nCoordinate: [" + (firstClickedIndex[0]) + ", " + (firstClickedIndex[1]) +
-                "]\n" + firstClickedTile;
+            string leftSelection = "First tile\n" + firstClickedTile;
             GUI.Label(new Rect(0, Screen.height - menuHeight, menuWidth, menuHeight), leftSelection, guiStyle);
         }
         if (secondClickedTile != null) {
-            string rightSelection = "Second tile\nPosition: " + secondClickedTile.getPos() +
-                "\nCoordinate: [" + (secondClickedIndex[0]) + ", " + (secondClickedIndex[1]) +
-                "]\n" + secondClickedTile;
+            string rightSelection = "Second tile\n" + secondClickedTile;
             GUI.Label(new Rect(0, Screen.height - 2 * menuHeight, menuWidth, menuHeight), rightSelection, guiStyle);
         }
         if (pathResult != null) {

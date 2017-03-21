@@ -75,14 +75,22 @@ namespace TileAttributes {
         // TODO load from stats.xml
         public static float tribeProb= 0.005f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "tribeProb"));
         public static float forestProb = 0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "forestProb"));
+        public static float marshProb = 0.05f;// = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "marshProb"));
 
         public LandTileType(bool applyEffect) : base("Land Tile", applyEffect) {
         }
         override
         public void applyEffect(Tile tile) {
             if (_applyEffect) {
-                if (UnityEngine.Random.Range(0f,1f) < forestProb)
-                    tile.addTileAttribute(new Forestry((float)Math.Pow(UnityEngine.Random.Range(0f, 1f), 2))); // random pow 5 to scale for less forests overall
+                if (UnityEngine.Random.Range(0f, 1f) < forestProb) {
+                    float val = (float)Math.Pow(UnityEngine.Random.Range(0f, 1f), 2); // random pow 5 to scale for less forests overall
+                    tile.addTileAttribute(new Forestry(val)); 
+                    tile.addTileAttribute(new Grassland(1-val));
+                } else {
+                    tile.addTileAttribute(new Grassland(UnityEngine.Random.Range(0f, 1f)));
+                }
+                if (UnityEngine.Random.Range(0f, 1f) < tribeProb)
+                    tile.addTileAttribute(new Marshland(UnityEngine.Random.Range(0f, 1f)));
                 if (UnityEngine.Random.Range(0f,1f) < tribeProb)
                     tile.addTileAttribute(new LocalTribe(UnityEngine.Random.Range(0, LocalTribe.maxLevel)));
                 base.applyEffect(tile);
@@ -105,7 +113,7 @@ namespace TileAttributes {
     }
 
     // ************************************** //
-    // TILE ATTRIBUTES //
+    // TILE TERRAIN ATTRIBUTES //
 
     public class Forestry : TileAttribute {
 
@@ -134,11 +142,72 @@ namespace TileAttributes {
 
             int animals = (int)(Animals.maxLevel * forestryDensity);
             if (animals > 0)
-                tile.addTileAttribute(new Animals(animals));
+                tile.addTileAttribute(new ForestAnimals(animals));
 
             tile.addTileAttribute(new WoodResource((int)(woodResourceFactor * forestryDensity)));
         }
     }
+
+    public class Grassland : TileAttribute {
+
+        public static float moveCostPenaltyFactor = 0.01f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Grassland", "moveCostPenaltyFactor"));
+        public static float humidityFactor = 0.1f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Grassland", "humidityFactor"));
+        public static float fertilityFactor = 2f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Grassland", "fertilityFactor"));
+        public static float fertilityBaseFactor = 2f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Grassland", "fertilityFactor"));
+
+        public float grasslandDensity { get; set; }
+
+        public Grassland(float grasslandDensity) : base("Grassland", true) {
+            this.grasslandDensity = grasslandDensity;
+            this.moveCostEffect = grasslandDensity * moveCostPenaltyFactor;
+            this.humidityEffect = grasslandDensity * humidityFactor;
+            this.fertilityEffect += fertilityBaseFactor + fertilityFactor * grasslandDensity;
+        }
+
+        override
+        public string ToString() {
+            return tileAttributeInfo + " " + grasslandDensity;
+        }
+
+        override
+        public void applyEffect(Tile tile) {
+            base.applyEffect(tile);
+
+            int animals = (int)(Animals.maxLevel * grasslandDensity);
+            if (animals > 0)
+                tile.addTileAttribute(new GrasslandAnimals(animals));
+        }
+    }
+
+    public class Marshland : TileAttribute {
+
+        public static float moveCostPenaltyFactor = 0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Marshland", "moveCostPenaltyFactor"));
+        public static float humidityFactor = 0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Marshland", "humidityFactor"));
+        public static float fertilityFactor = -0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Marshland", "fertilityFactor"));
+        public static float fertilityBaseFactor = -1f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Marshland", "fertilityFactor"));
+
+        public float marshDensity { get; set; }
+
+        public Marshland(float marshDensity) : base("Marshland", true) {
+            this.marshDensity = marshDensity;
+            this.moveCostEffect = marshDensity * moveCostPenaltyFactor;
+            this.humidityEffect = marshDensity * humidityFactor;
+            this.fertilityEffect += fertilityBaseFactor + fertilityFactor * marshDensity;
+        }
+
+        override
+        public string ToString() {
+            return tileAttributeInfo + " " + marshDensity;
+        }
+
+        override
+        public void applyEffect(Tile tile) {
+            base.applyEffect(tile);
+
+        }
+    }
+
+    /// ***  *** ///
 
     public class Beasts : TileAttribute {
         // TODO load maxLevel from stats.xml
@@ -158,16 +227,20 @@ namespace TileAttributes {
         }
     }
 
-    public class Animals : TileAttribute {
+    public abstract class Animals : TileAttribute {
         // TODO load maxLevel from stats.xml
         public static int maxLevel = 10; // = int.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/Animals", "maxLevel"));
+        public float fertilityFactor { get; set; }
+        public float pollutionFactor { get; set; }
 
         public int level { get; set; }
 
-        public Animals(int level) : base("Animals", true) {
+        public Animals(int level, float fertilityFactor, float pollutionFactor, string tileAttributeName="Animals") : base(tileAttributeName, true) {
             this.level = (maxLevel < level) ? maxLevel : level;
-            this.fertilityEffect = (level);
-            this.pollutionEffect = (-level);
+            this.fertilityFactor = fertilityFactor;
+            this.pollutionFactor = pollutionFactor;
+            this.fertilityEffect = (level * this.fertilityFactor);
+            this.pollutionEffect = (level * this.pollutionFactor);
         }
 
         override
@@ -176,8 +249,25 @@ namespace TileAttributes {
         }
     }
 
+    public class ForestAnimals : Animals {
+        new public static float fertilityFactor = 0.25f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/ForestAnimals", "fertilityFactor"));
+        new public static float pollutionFactor = -0.5f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/ForestAnimals", "pollutionFactor"));
+
+        public ForestAnimals(int level) : base(level, fertilityFactor, pollutionFactor, "Forest Animals") {
+            this.level = (maxLevel < level) ? maxLevel : level;
+        }
+    }
+
+    public class GrasslandAnimals : Animals {
+        new public static float fertilityFactor = 0.5f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/GrasslandAnimals", "fertilityFactor"));
+        new public static float pollutionFactor = -0.25f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/GrasslandAnimals", "pollutionFactor"));
+
+        public GrasslandAnimals(int level) : base(level, fertilityFactor, pollutionFactor, "Grassland Animals") {
+            this.level = (maxLevel < level) ? maxLevel : level;
+        }
+    }
+
     public class LocalTribe : TileAttribute {
-        // TODO load maxLevel from stats.xml
         public static int maxLevel = 10; // = int.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "maxLevel"));
         public static float minHostility = 0f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "minHostility"));
         public static float maxHostility = 1f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "maxHostility"));

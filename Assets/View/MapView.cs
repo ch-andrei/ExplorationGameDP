@@ -11,7 +11,7 @@ public class MapView : MonoBehaviour {
     public int updatesPerFrame = 5;
 
     // states for redrawing the views
-    public enum States { notupdated, destroyQueued, destroying, destroyed, setupQueued, settingup, setupDone, updated};
+    public enum States { notupdated, destroyQueued, destroying, destroyed, setupQueued, settingup, setupDone, updated };
 
     int state = (int)States.notupdated;
     int destroyState = (int)States.destroyed;

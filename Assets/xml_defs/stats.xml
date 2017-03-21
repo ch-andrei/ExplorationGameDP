@@ -38,14 +38,19 @@
     </MapGeneratorInput>
 
     <player>
-     <actionPoints>5</actionPoints>
-     <supplies>250</supplies>
-     <moraleup>1.1</moraleup>
-     <moraledown>0.85</moraledown>
- </player>
+       <actionPoints>5</actionPoints>
+       <actionPointsEncamp>4</actionPointsEncamp>
+       <actionPointsLeave>5</actionPointsLeave>
+       <actionPoints>5</actionPoints>
+       <fertilitySupplies>10</fertilitySupplies>  
+       <startingSupplies>250</startingSupplies>
+       <startingMaxSupplies>500</startingMaxSupplies>
+       <moraleup>0.10</moraleup>
+       <moraledown>0.15</moraledown>
+   </player>
 
- <followers>
-     <Swordsman>
+   <followers>
+       <Swordsman>
         <foodDemand>5</foodDemand>
         <morale>0.75</morale>
         <strength>9</strength>

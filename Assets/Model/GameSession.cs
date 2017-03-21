@@ -29,19 +29,32 @@ public class GameSession  {
 
     public PathResult playerAttemptMove(Tile moveTo, out string message, bool movePlayer = false) {
 
-        PathResult pr = (new DijkstraPathFinder(maxDepth: player.getMaxActionPoints(), maxCost: player.getActionPoints()))
+        if (player.getCampStatus()) {
+            message = "We must leave the encampment first!";
+            return null;
+        }
+
+        PathResult pr = (new DijkstraPathFinder(maxDepth: player.getMaxActionPoints(), 
+                                                maxCost: player.getActionPoints(),
+                                                maxIncrementalCost: player.getMaxActionPoints()))
                              .pathFromTo(mapGenerator.getRegion() as HexRegion,
                              player.getPosTile(),
                              moveTo);
 
+        // if successful move 
         if (movePlayer && pr.reachedGoal) {
             player.setPos(moveTo);
+            player.loseActionPoints(Mathf.CeilToInt(pr.pathCost));
         }
 
         player.attemptedMove(moveTo.getPos(), out message);
 
         return pr;
     }
+
+    //public bool playerAttemptChangeEncampmentStatus(out string message) {
+        
+    //}
 
     // TODO teset this method more thoroughly
     // attempt to place player in the center of the generated region
@@ -57,7 +70,7 @@ public class GameSession  {
         while (landmassSearchDepth <= maxDepth) {
             Debug.Log("Running iteration " + landmassSearchDepth);
             // run uniform cost search to locate surronding land tiles
-            pr = (new DijkstraUniformCostPathFinder( maxDepth : landmassSearchDepth, maxCost : float.MaxValue))
+            pr = (new DijkstraUniformCostPathFinder( uniformCost: 1f, maxDepth: landmassSearchDepth, maxCost: float.MaxValue))
                              .pathFromTo( mapGenerator.getRegion() as HexRegion, 
                              tile, 
                              new HexTile(new Vector3(), new Vector2(float.MaxValue, float.MaxValue)));
@@ -68,7 +81,7 @@ public class GameSession  {
                 if (_tile.getTileType().GetType() == typeof(LandTileType)) {
 
                     // run Dijkstra pathfinder starting at current landtype tile and count how many landtype tiles are reachable from it
-                    prLocal = (new DijkstraPathFinder( maxDepth : 20, maxCost : 500))
+                    prLocal = (new DijkstraPathFinder( maxDepth: 20, maxCost: 500, maxIncrementalCost: player.getMaxActionPoints()))
                              .pathFromTo( mapGenerator.getRegion() as HexRegion, 
                              _tile, 
                              new HexTile(new Vector3(), new Vector2(float.MaxValue, float.MaxValue)));
@@ -84,7 +97,9 @@ public class GameSession  {
                     // check if tile's local landmass has enough landtype tiles
                     if (localCount >= playerPosLandmassTilesConstraint) {
                         // run pathfinder again but with small max depth to see if the player can actually move around
-                        prLocal = (new DijkstraPathFinder(maxDepth: player.getMaxActionPoints(), maxCost: player.getMaxActionPoints()))
+                        prLocal = (new DijkstraPathFinder(maxDepth: player.getMaxActionPoints(), 
+                                                            maxCost: player.getMaxActionPoints(),
+                                                            maxIncrementalCost: player.getMaxActionPoints()))
                                     .pathFromTo(mapGenerator.getRegion() as HexRegion,
                                     _tile,
                                     new HexTile(new Vector3(), new Vector2(float.MaxValue, float.MaxValue)));

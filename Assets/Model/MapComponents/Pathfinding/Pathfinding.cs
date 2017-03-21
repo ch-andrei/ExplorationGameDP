@@ -61,6 +61,10 @@ namespace Pathfinding {
         public static float upElevatonPerPoint = 3.5f;
         public static float downElevatonPerPoint = 5f;
 
+        public int maxDepth { get; set; }
+        public float maxCost { get; set; }
+        public float maxIncrementalCost { get; set; }
+
         // assumes the tiles are adjacent to each other
         public virtual float costBetween(PathTile t1, PathTile t2) {
             float cost = 1f; // base cost between tiles
@@ -75,6 +79,8 @@ namespace Pathfinding {
             // cost due to tile attributes
             cost += t2.tile.moveCostPenalty;
 
+            if (cost > this.maxIncrementalCost)
+                return float.PositiveInfinity;
             return cost;
         }
 
@@ -84,8 +90,12 @@ namespace Pathfinding {
     public abstract class HeuristicPathFinder : PathFinder{
 
         public static float heuristicDepthInfluence = 1e-3f; // nudges priorities for tie breaking
-        public int maxDepth = 50;
-        public float maxCost = 10f;
+
+        public HeuristicPathFinder(int maxDepth, float maxCost, float maxIncrementalCost) {
+            base.maxDepth = maxDepth;
+            base.maxCost = maxCost;
+            base.maxIncrementalCost = maxIncrementalCost;
+        }
 
         // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
         public virtual PathResult pathFromTo(HexRegion region, Tile start, Tile goal, HeuristicPathFinder heuristic) {
@@ -119,8 +129,7 @@ namespace Pathfinding {
                 explored[crt.tile.index] = crt;
 
                 if (crt.CompareTo(goalPt)) {
-                    // reached goal
-                    // search complete
+                    // reached goal; search complete
                     pathResult.reachedGoal = true;
                     pathResult.pathCost = costs[crt.tile.index];
                     break;
@@ -160,12 +169,13 @@ namespace Pathfinding {
                             previous[neighbor.tile.index] = crt;
                         }
                     }
-                        
                 }
             }
 
             // build list of tiles on path if goal was reached
             if (pathResult.reachedGoal) {
+                pathResult.pathTiles.Add(goalPt);
+
                 crt = previous[goal.index];
 
                 while (crt != null) {
@@ -188,9 +198,7 @@ namespace Pathfinding {
 
     public class AstarPathFinder : HeuristicPathFinder {
 
-        public AstarPathFinder(int maxDepth = 50, float maxCost = 10f) {
-            base.maxDepth = maxDepth;
-            base.maxCost = maxCost;
+        public AstarPathFinder(int maxDepth, float maxCost, float maxIncrementalCost) : base(maxDepth, maxCost, maxIncrementalCost){
         }
 
         override
@@ -212,9 +220,7 @@ namespace Pathfinding {
 
     public class DijkstraPathFinder : HeuristicPathFinder {
 
-        public DijkstraPathFinder(int maxDepth = 50, float maxCost = 10f) {
-            base.maxDepth = maxDepth;
-            base.maxCost = maxCost;
+        public DijkstraPathFinder(int maxDepth, float maxCost, float maxIncrementalCost) : base(maxDepth, maxCost, maxIncrementalCost) {
         }
 
         override
@@ -232,7 +238,7 @@ namespace Pathfinding {
 
         float uniformCost;
 
-        public DijkstraUniformCostPathFinder(int maxDepth = 50, float maxCost = 10f, float uniformCost = 1f) : base(maxDepth, maxCost) {
+        public DijkstraUniformCostPathFinder(float uniformCost, int maxDepth, float maxCost, float maxIncrementalCost=0) : base(maxDepth, maxCost, maxIncrementalCost) {
             this.uniformCost = uniformCost;
         }
 
@@ -244,7 +250,7 @@ namespace Pathfinding {
 
     public class PriorityQueue<T> {
 
-        public class PriorityQueueElement<T> {
+        public struct PriorityQueueElement<T> {
             public float priority { get; set; }
             public T item { get; set; }
             public PriorityQueueElement(T item, float priority) {
