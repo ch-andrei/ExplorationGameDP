@@ -1,0 +1,38 @@
+March 20 Changelog:
+
+CameraControl
+    -Restricted camera height
+    -Restricted camera clipping into objects (wont go inside tiles, water)
+    -Added inertia when zooming in/out
+
+GameControl:
+    -Buttons for player movement/encampment
+    -Button for game menu, which toggles Quality settings buttons on/off
+
+MouseControl:
+    -Made tile indicators appear 5 units above ground
+    -Added toggle for move mode
+    -Set pathfinding to be on only when move mode is on
+    -Left click selects tile for inspection
+    -Right click selects movement points when in move mode
+
+GameSession:
+    -Restricted player movement to when the player is not in encampment
+
+Pathfinding:
+    -Added maximum incremental cost parameter; max incremental cost dictates the maximum allowed cost for moving to adjacent tiles (if actual cost exceeds max incremental cost, the move should be impossible)
+
+TileAttribute:
+    -Changed effect of LandType tile; LandType now spawns Forestry and Grassland in ration r:1-r
+    -Added Grassland, Marshland tile attributes
+    -Separated Animals tile attribute into ForestAnimals and GrasslandAnimals
+
+Player:
+    -Refactored static variables to be read from stats XML
+    -Added logic for encampment
+    -Changed morale updates from exponential to linear
+    -Added supplies update (positive change) to newTurn function
+
+PlayerView:
+    -Added support for two player view modes: player mode and encampment mode
+    -Adjustd Update function to spawn/despawn models based on player view mode
