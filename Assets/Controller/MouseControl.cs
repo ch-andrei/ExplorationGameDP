@@ -50,10 +50,10 @@ public class MouseControl : MonoBehaviour {
         guiStyle.alignment = TextAnchor.LowerLeft;
         guiStyle.normal.textColor = Utilities.hexToColor("#153870");
 
-        AstarPF = new AstarPathFinder(maxDepth: 50, maxCost: 50, maxIncrementalCost: GameControl.gameSession.player.getMaxActionPoints());
-        DijsktraPF = new DijkstraPathFinder(maxDepth: GameControl.gameSession.player.getMaxActionPoints(), 
-                                            maxCost: GameControl.gameSession.player.getActionPoints(),
-                                            maxIncrementalCost: GameControl.gameSession.player.getMaxActionPoints()
+        AstarPF = new AstarPathFinder(maxDepth: 50, maxCost: 50, maxIncrementalCost: GameControl.gameSession.humanPlayer.getMaxActionPoints());
+        DijsktraPF = new DijkstraPathFinder(maxDepth: GameControl.gameSession.humanPlayer.getMaxActionPoints(), 
+                                            maxCost: GameControl.gameSession.humanPlayer.getActionPoints(),
+                                            maxIncrementalCost: GameControl.gameSession.humanPlayer.getMaxActionPoints()
                                             );
     }
 
@@ -90,31 +90,37 @@ public class MouseControl : MonoBehaviour {
 
         /// *** PATHFINDING PART *** ///
         if (moveMode) {
-            DijsktraPF.maxDepth = GameControl.gameSession.player.getMaxActionPoints();
-            DijsktraPF.maxCost = GameControl.gameSession.player.getActionPoints();
+            DijsktraPF.maxDepth = GameControl.gameSession.humanPlayer.getMaxActionPoints();
+            DijsktraPF.maxCost = GameControl.gameSession.humanPlayer.getActionPoints();
 
-            // draw move range
+            // draw move range only 
+            // TODO optimize this to not recalculate path on every frame
             StartCoroutine(
                 displayPath(
                     DijsktraPF.pathFromTo(
-                        GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
-                        GameControl.gameSession.player.getPosTile(),
-                        new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue))),
+                        GameControl.gameSession.humanPlayer.getPosTile(),
+                        new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
+                        playersCanBlockPath: true
+                        ),
                     writeToGlobalPathResult: false,
                     displayTimeInSeconds: 0.1f,
                     drawExplored: true));
 
-            // draw path to selected tile
+            // draw path to the selected tile 
+            // TODO optimize this to not recalculate path on every frame
             if (mouseOverTile != null)
                 StartCoroutine(
                     displayPath(
                          AstarPF.pathFromTo(
-                             GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
-                             GameControl.gameSession.player.getPosTile(),
-                             mouseOverTile),
+                             GameControl.gameSession.humanPlayer.getPosTile(),
+                             mouseOverTile,
+                             playersCanBlockPath: true
+                             ),
                          writeToGlobalPathResult: false,
                          displayTimeInSeconds: 0.1f,
-                         drawExplored: false));
+                         drawExplored: false,
+                         drawCost: true
+                         ));
 
             // *** MOUSE CLICKS CONTROL PART *** //
 
@@ -131,6 +137,7 @@ public class MouseControl : MonoBehaviour {
                     if (firstClickedTile.Equals(secondClickedTile)) {
                         pathResult = GameControl.gameSession.playerAttemptMove(firstClickedTile, out attemptedMoveMessage, movePlayer: true);
                         StartCoroutine(displayPath(pathResult));
+                        changeMoveMode();
                     } else {
                         // clicked another tile: overwrite first selection
                         firstClickedTile = mouseOverTile;
@@ -143,14 +150,17 @@ public class MouseControl : MonoBehaviour {
                 selectionOrder = !selectionOrder;
             }
 
+            // draw path to selected tile
+            // TODO optimize this to not recalculate path every frame
             if (firstClickedTile != null) {
                 // draw move path
                 StartCoroutine(
                     displayPath(
                         DijsktraPF.pathFromTo(
-                            GameControl.gameSession.mapGenerator.getRegion() as HexRegion,
-                            GameControl.gameSession.player.getPosTile(),
-                            firstClickedTile),
+                            GameControl.gameSession.humanPlayer.getPosTile(),
+                            firstClickedTile,
+                            playersCanBlockPath: true
+                            ),
                         writeToGlobalPathResult: false,
                         displayTimeInSeconds: 0.1f,
                         drawExplored: false));
@@ -162,18 +172,23 @@ public class MouseControl : MonoBehaviour {
         moveMode = !moveMode;
     }
 
+    public static void resetMouseControlView() {
+        moveMode = false;
+    }
+
     // FOR DEBUGGING PURPOSES
     public IEnumerator computePath(PathFinder pathFinder, Tile start, Tile goal, float displayTimeInSeconds = 2f, bool writeToGlobalPathResult = true) {
         if (start != null && goal != null) {
             // compute path
-            PathResult pr = pathFinder.pathFromTo(GameControl.gameSession.mapGenerator.getRegion() as HexRegion, start, goal);
+            PathResult pr = pathFinder.pathFromTo(start, goal);
             yield return displayPath(pr, displayTimeInSeconds, writeToGlobalPathResult, drawExplored : true);
         }
     }
 
-    public IEnumerator displayPath(PathResult pr, float displayTimeInSeconds = 2f, bool writeToGlobalPathResult = true, bool drawExplored = false) {
+    public IEnumerator displayPath(PathResult pr, float displayTimeInSeconds = 2f, bool writeToGlobalPathResult = true, bool drawExplored = false, bool drawCost = false) {
         List<GameObject> _pathIndicators = null;
         List<GameObject> _exploredIndicators = null;
+        GameObject costIndicator = null;
 
         if (pr != null) {
 
@@ -185,7 +200,7 @@ public class MouseControl : MonoBehaviour {
             _exploredIndicators = new List<GameObject>();
 
             // draw path info
-            foreach (Tile tile in pr.getTiles()) {
+            foreach (Tile tile in pr.getTilesOnPathStartFirst()) {
                 GameObject _pathIndicator = Instantiate(pathIndicator);
                 _pathIndicator.transform.parent = this.transform;
                 _pathIndicator.transform.position = tile.getPos() + ySelectionOffset;
@@ -199,6 +214,23 @@ public class MouseControl : MonoBehaviour {
                     _exploredIndicator.transform.parent = this.transform;
                     _exploredIndicator.transform.position = tile.getPos() + ySelectionOffset;
                     _exploredIndicators.Add(_exploredIndicator);
+                }
+            }
+
+            if (drawCost) {
+                if (pr.reachedGoal) {
+                    costIndicator = Instantiate(Resources.Load("Prefabs/Text/TileCostObject"), this.transform) as GameObject;
+
+                    // set position
+                    Tile tile = pr.getTilesOnPath()[0];
+                    costIndicator.transform.position = tile.getPos() + ySelectionOffset * 2;
+
+                    // set text
+                    string pathCost = Mathf.CeilToInt(pr.pathCost) + "AP";
+                    costIndicator.transform.GetChild(0).GetComponent<TextMesh>().text = pathCost;
+
+                    costIndicator.transform.LookAt(Camera.main.transform);
+                    costIndicator.transform.forward = -costIndicator.transform.forward;
                 }
             }
         }
@@ -215,6 +247,8 @@ public class MouseControl : MonoBehaviour {
             foreach (GameObject go in _exploredIndicators) {
                 Destroy(go);
             }
+        if (costIndicator != null)
+            Destroy(costIndicator);
     }
 
     void OnGUI() {
@@ -232,7 +266,7 @@ public class MouseControl : MonoBehaviour {
         }
         if (pathResult != null) {
             string pathInfo = "Path cost:" + pathResult.pathCost;
-            foreach (Tile tile in pathResult.getTiles()) {
+            foreach (Tile tile in pathResult.getTilesOnPathStartFirst()) {
                 pathInfo += "\n" + tile.index;
             }
             GUI.Label(new Rect(menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), pathInfo, guiStyle);

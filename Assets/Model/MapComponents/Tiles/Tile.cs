@@ -126,17 +126,6 @@ namespace Tiles {
 
     public class HexTile : Tile {
 
-        public static Vector3 AxialToCubeCoord(Vector2 axial) {
-            return new Vector3(axial.x, axial.y, -axial.x - axial.y);
-        }
-
-        public static float distanceBetweenHexCoords(Vector2 a, Vector2 b) {
-            return distanceBetweenHexCoords(AxialToCubeCoord(a), AxialToCubeCoord(b));
-        }
-        public static float distanceBetweenHexCoords(Vector3 a, Vector3 b) {
-            return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z));
-        }
-
         // indexes for the Neighbors array
         public enum Directions : byte {
             TopRight = 0,
@@ -178,6 +167,17 @@ namespace Tiles {
         override
         public Vector3[] getGeometry() {
             return this.hexagon.getVertices();
+        }
+
+        public static Vector3 AxialToCubeCoord(Vector2 axial) {
+            return new Vector3(axial.x, axial.y, -axial.x - axial.y);
+        }
+
+        public static float distanceBetweenHexCoords(Vector2 a, Vector2 b) {
+            return distanceBetweenHexCoords(AxialToCubeCoord(a), AxialToCubeCoord(b));
+        }
+        public static float distanceBetweenHexCoords(Vector3 a, Vector3 b) {
+            return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y), Mathf.Abs(a.z - b.z));
         }
     }
 }

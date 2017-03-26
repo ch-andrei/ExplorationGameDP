@@ -73,7 +73,7 @@ namespace TileAttributes {
 
     public class LandTileType : TileType {
         // TODO load from stats.xml
-        public static float tribeProb= 0.005f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "tribeProb"));
+        public static float tribeProb= 0.05f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "tribeProb"));
         public static float forestProb = 0.75f; // = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "forestProb"));
         public static float marshProb = 0.05f;// = float.Parse(Utilities.statsXMLreader.getParameterFromXML("TileAttributes/LocalTribe", "marshProb"));
 
@@ -107,6 +107,7 @@ namespace TileAttributes {
             if (_applyEffect) {
                 // update temperature: compute at water level elevation and not at tile's elevation
                 tile.temperature = (HexRegion.computeTemperatureAtPos(tile.getPos() - new UnityEngine.Vector3(0, tile.elevationToWater, 0)));
+                
                 base.applyEffect(tile);
             }
         }

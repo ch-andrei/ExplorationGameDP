@@ -6,11 +6,13 @@ using System;
 using Tiles;
 using TileAttributes;
 
+using Playable;
+
 namespace Pathfinding {
 
     public class PathResult {
-        public List<PathTile> pathTiles { get; }
-        public List<PathTile> exploredPathTiles { get; }
+        protected List<PathTile> pathTiles { get; } // goal tile is first in this list
+        protected List<PathTile> exploredPathTiles { get; }
         public bool reachedGoal { get; set; }
         public float pathCost { get; set; }
         public PathResult() {
@@ -18,11 +20,17 @@ namespace Pathfinding {
             exploredPathTiles = new List<PathTile>();
             reachedGoal = false;
         }
-        public List<Tile> getTiles() {
+        public List<Tile> getTilesOnPath() {
             List<Tile> tilesOnPath = new List<Tile>();
             foreach (PathTile pt in pathTiles) {
                 tilesOnPath.Add(pt.tile);
             }
+            return tilesOnPath;
+        }
+        public List<Tile> getTilesOnPathStartFirst() {
+            List<Tile> tilesOnPath = getTilesOnPath();
+            // reverse the order to be start tile first
+            tilesOnPath.Reverse();
             return tilesOnPath;
         }
         public List<Tile> getExploredTiles() {
@@ -31,6 +39,12 @@ namespace Pathfinding {
                 exploredTiles.Add(pt.tile);
             }
             return exploredTiles;
+        }
+        public void addPathtile(PathTile pt) {
+            this.pathTiles.Add(pt);
+        }
+        public void addExploredPathtile(PathTile pt) {
+            this.exploredPathTiles.Add(pt);
         }
     }
 
@@ -58,8 +72,8 @@ namespace Pathfinding {
 
     public abstract class PathFinder {
 
-        public static float upElevatonPerPoint = 3.5f;
-        public static float downElevatonPerPoint = 5f;
+        public static float upElevatonPerPoint = 6f;
+        public static float downElevatonPerPoint = 7f;
 
         public int maxDepth { get; set; }
         public float maxCost { get; set; }
@@ -84,7 +98,9 @@ namespace Pathfinding {
             return cost;
         }
 
-        public abstract PathResult pathFromTo(HexRegion region, Tile start, Tile goal);
+        public abstract PathResult pathFromTo(Tile start, Tile goal, bool playersCanBlockPath = false);
+
+        public abstract PathResult pathFromTo(HexRegion _region, Tile start, Tile goal, bool playersCanBlockPath = false);
     }
 
     public abstract class HeuristicPathFinder : PathFinder{
@@ -97,8 +113,7 @@ namespace Pathfinding {
             base.maxIncrementalCost = maxIncrementalCost;
         }
 
-        // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
-        public virtual PathResult pathFromTo(HexRegion region, Tile start, Tile goal, HeuristicPathFinder heuristic) {
+        public virtual PathResult pathFromTo(HexRegion region, Tile start, Tile goal, HeuristicPathFinder heuristic, bool playersCanBlockPath = false) {
 
             PathResult pathResult = new PathResult();
 
@@ -154,7 +169,15 @@ namespace Pathfinding {
                     }
 
                     // compute cost
-                    cost = costs[crt.tile.index] + costBetween(crt, neighbor);
+                    float _cost = costBetween(crt, neighbor);
+
+                    // check if path is blocked by another player
+                    if (playersCanBlockPath && GameControl.gameSession.checkForPlayersAt(neighbor.tile) != null) {
+                        if (!neighbor.CompareTo(goalPt))  // ensures that you can move to a tile with an enemy
+                            _cost = float.PositiveInfinity; // set highest cost to signify that the tile is unreachable
+                    }
+
+                    cost = costs[crt.tile.index] + _cost;
 
                     if (cost <= maxCost) {
                         if (!costs.ContainsKey(neighbor.tile.index) || cost < costs[neighbor.tile.index]) {
@@ -174,21 +197,38 @@ namespace Pathfinding {
 
             // build list of tiles on path if goal was reached
             if (pathResult.reachedGoal) {
-                pathResult.pathTiles.Add(goalPt);
+                pathResult.addPathtile(goalPt);
 
                 crt = previous[goal.index];
 
                 while (crt != null) {
-                    pathResult.pathTiles.Add(crt);
+                    pathResult.addPathtile(crt);
                     crt = previous[crt.tile.index];
                 }
             }
 
             foreach (PathTile pt in explored.Values) {
-                pathResult.exploredPathTiles.Add(pt);
+                pathResult.addExploredPathtile(pt);
             }
 
             return pathResult;
+        }
+
+        // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
+        public virtual PathResult pathFromTo(Tile start, Tile goal, HeuristicPathFinder heuristic, bool playersCanBlockPath = false) {
+            HexRegion region = GameControl.gameSession.mapGenerator.getRegion() as HexRegion;
+
+            return pathFromTo(region, start, goal, heuristic, playersCanBlockPath);
+        }
+
+        override
+        public PathResult pathFromTo(Tile start, Tile goal, bool playersCanBlockPath = false) {
+            return pathFromTo(start, goal, this, playersCanBlockPath);
+        }
+
+        override
+        public PathResult pathFromTo(HexRegion region, Tile start, Tile goal, bool playersCanBlockPath = false) {
+            return pathFromTo(region, start, goal, this, playersCanBlockPath);
         }
 
         // *** HEURISTIC COMPUTATIONS *** ///
@@ -211,11 +251,6 @@ namespace Pathfinding {
                 cost += elevationDelta / upElevatonPerPoint;
             return cost;
         }
-
-        override
-        public PathResult pathFromTo(HexRegion region, Tile start, Tile goal) {
-            return base.pathFromTo(region, start, goal, this);
-        }
     }
 
     public class DijkstraPathFinder : HeuristicPathFinder {
@@ -228,10 +263,6 @@ namespace Pathfinding {
             return 0;
         }
 
-        override
-        public PathResult pathFromTo(HexRegion region, Tile start, Tile goal) {
-            return base.pathFromTo(region, start, goal, this);
-        }
     }
 
     public class DijkstraUniformCostPathFinder : DijkstraPathFinder {

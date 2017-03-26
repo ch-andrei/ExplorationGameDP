@@ -24,7 +24,7 @@ public class GameControl : MonoBehaviour {
     void Awake() {
         mgi.Initialize(useRandomSeed);
         gameSession = new GameSession(mgi);
-        //Debug.Log("GameSession Region with tiles count " + gameSession.mapGenerator.getRegion().getViewableTiles().Count);
+        Application.targetFrameRate = 30;
     }
 
     // Use this for initialization
@@ -38,11 +38,9 @@ public class GameControl : MonoBehaviour {
         Awake();
     }
 
-    int counter = 0;
-
     public void Update() {
         // TODO 
-        // do something about the game status
+        // do something about the game status?
     }
 
     public void setPreset(string preset) {
@@ -57,9 +55,10 @@ public class GameControl : MonoBehaviour {
     int playerInfoWidth = 400;
     int playerInfoHeight = 200;
     bool showMenu = false;
+    bool showPlayerMenu = false;
 
     void OnGUI() {
-
+        string button_name = "";
         GUILayout.BeginVertical();
         {
             if (showMenu) {
@@ -76,38 +75,46 @@ public class GameControl : MonoBehaviour {
                 showMenu = !showMenu;
             }
 
-            string camp_status;
-            if (gameSession.player.getCampStatus()) {
-                if (GUILayout.Button("Leave Encampment")) {
-                    gameSession.player.changeCampStatus(out camp_status);
-                }
+            if (showPlayerMenu) {
+                button_name = "Hide Player Info";
             } else {
-                if (GUILayout.Button("Build Encampment")) {
-                    gameSession.player.changeCampStatus(out camp_status);
-                }
+                button_name = "Show Player Info";
             }
-            
+            if (GUILayout.Button(button_name)) {
+                showPlayerMenu = !showPlayerMenu;
+            }
+
+            string camp_status;
+            if (gameSession.humanPlayer.getCampStatus()) {
+                button_name = "Build Encampment";
+            } else {
+                button_name = "Leave Encampment";
+            }
+            if (GUILayout.Button(button_name)) {
+                gameSession.humanPlayer.changeCampStatus(out camp_status);
+            }
+
             if (GUILayout.Button("Move player")) {
                 MouseControl.changeMoveMode();
             }
 
             if (GUILayout.Button("New turn")) {
-                gameSession.player.newTurn();
+                gameSession.newTurn();
+
+                // TODO
+                // displayNewTurnNotification();
+            }
+
+            if (GUILayout.Button("Center on player")) {
+                CameraControl.toggleCenterOnPlayer();
             }
         }
         GUILayout.EndVertical();
 
-        GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight), 
-            "Player info:\nPosition: " + gameSession.player.getPos() + 
-            "\nCoordinates: " + gameSession.player.getPosIndex() + 
-            "\nEncampment: " + gameSession.player.getCampStatus() + 
-            "\nAction points: " + gameSession.player.getActionPoints() + 
-            "\nStrength: " + gameSession.player.computeStrength() + 
-            "\nMorale: " + gameSession.player.computeMorale() + 
-            "\nSupplies: " + gameSession.player.getSupplies() + 
-            "\nSupplies Consumption per turn: " + gameSession.player.getFoodConsumption() + 
-            "\nFollowers:\n" + gameSession.player.getFollowersAsString()
-            );
+        if (showPlayerMenu)
+            GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight),
+                gameSession.humanPlayer.ToString()
+                );
     }
 
     // DEPRECATED

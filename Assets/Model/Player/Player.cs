@@ -3,273 +3,411 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+using Pathfinding;
+using Viewable;
 using Tiles;
 using Followers;
 using TileAttributes;
 
-// DO WE REALLY NEED THIS?
-public interface ViewablePlayer {
+namespace Playable {
 
-    // getters
-    Vector3 getPos();
-    Tile getPosTile();
-    Vector2 getPosIndex();
+    public abstract class Player : ViewablePlayer {
 
-    int getActionPoints();
-    int getMaxActionPoints();
-    List<Resource> getResources();
-    int getSupplies();
-    bool getCampStatus(out string message);
-    bool getCurrentUpgrades(out string message);
-    bool getPossibleUpgrades(out string message);
+        // Player constants
 
-    // setters
-    void setPos(Tile pos);
-    void loseActionPoints(int actionPointsToLose);
+        protected static int maxActionPoints = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPoints"));
+        protected static int startingSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingSupplies"));
+        protected static int startingMaxSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingMaxSupplies"));
+        
+        protected static int actionPointsToLeave = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsLeave"));
+        protected static int actionPointsToEncamp = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsEncamp"));
+        
+        protected static float moraleUp = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraleup"));
+        protected static float moraleDown = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraledown"));
+        
+        protected static int suppliesPerFertilityPoint = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "fertilitySupplies"));
+        
+        protected static float followerDeathThreshold = 1e-3f;
 
-    // actions
-    bool attemptedMove(Vector3 moveToPos, out string message);
-    bool changeCampStatus(out string message);
-    bool doQuest(out string message);
-    bool doUpgrade(out string message);
-    bool gatherResource(out string message);
+        // Player variables
 
-    // updates
-    void newTurn();
-}
+        private bool _dead;
+        public bool dead { get { return this._dead; } }
 
-public class Player : ViewablePlayer {
+        public long id { get; set; }
 
-    // Player constants
+        protected Tile tilePos;
 
-    private static int maxActionPoints = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPoints"));
-    private static int startingSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingSupplies"));
-    private static int startingMaxSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingMaxSupplies"));
+        protected List<Resource> resources;
+        protected List<Follower> followers;
 
-    private static int actionPointsToLeave = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsLeave"));
-    private static int actionPointsToEncamp = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsEncamp"));
+        protected bool encampment;
 
-    private static float moraleUp = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraleup"));
-    private static float moraleDown = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraledown"));
+        protected int supplies;
+        protected int maxSupplies;
 
-    private static int suppliesPerFertilityPoint = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "fertilitySupplies"));
+        protected int actionPoints;
 
-    private static float followerDeathThreshold = 1e-3f;
+        public Player() : base() {
+            this.tilePos = new HexTile(new Vector3(), new Vector2());
+            this.resources = new List<Resource>();
+            this.followers = new List<Follower>();
+            this.encampment = false;
+            this.actionPoints = maxActionPoints;
+            this.supplies = startingSupplies;
+            this.maxSupplies = startingMaxSupplies;
+            this._dead = false;
+            this.id = DateTime.Now.Ticks;
+            Debug.Log("Made player with id " + this.id);
+            initPlayer();
+        }
 
-    // Player variables
+        public abstract void initPlayer();
 
-    private Tile tilePos;
+        public virtual void newTurn() {
+            // pre updates
+            updateMorale();
+            updateHealthPoints();
+            checkFollowersHealthPoints();
+            this.supplies -= getFoodConsumption();
+            if (this.supplies < 0) this.supplies = 0;
 
-    private List<Resource> resources;
-    private List<Follower> followers;
+            // post updates
+            if (encampment) { // in camp
+                int supplies = (int)((tilePos.fertility - tilePos.danger) * suppliesPerFertilityPoint);
+                if (supplies > 0)
+                    playerAddSupplies(supplies);
+            } else { // not in camp
+                     // do nothing
+            }
 
-    private bool encampment;
+            // final updates
+            this.actionPoints = maxActionPoints;
 
-    private int supplies;
-    private int maxSupplies;
+            checkPlayerAlive();
+        }
 
-    private int actionPoints;
+        public void playerAddSupplies(int suppliesToAdd) {
+            this.supplies += suppliesToAdd;
+            if (this.supplies > maxSupplies)
+                this.supplies = maxSupplies;
+        }
 
-    public Player() {
-        this.tilePos = new HexTile(new Vector3(), new Vector2());
-        this.resources = new List<Resource>();
-        this.followers = new List<Follower>();
-        initPlayer();
+        public void kill() {
+            followers.RemoveRange(0, followers.Count);
+            this.supplies = 0;
+            this._dead = true;
+            notifyDestroy();
+        }
+
+        // updates the morale of each follower based on supplies
+        public void updateMorale() {
+
+            float adjustement, morale_adjusted;
+
+            foreach (Follower f in followers) {
+
+                if (this.supplies < this.getFoodConsumption()) {
+                    adjustement = moraleDown * (1 - f.getWillpower());
+                    morale_adjusted = f.getMorale() - adjustement;
+                } else {
+                    adjustement = moraleUp * (1 - f.getMorale()) * (1 + f.getWillpower());
+                    morale_adjusted = f.getMorale() + adjustement;
+                }
+
+                if (morale_adjusted > 1f)
+                    morale_adjusted = 1f;
+                if (morale_adjusted < 0f)
+                    morale_adjusted = 0f;
+
+                f.setMorale(morale_adjusted);
+            }
+        }
+
+        public void distributeDamage(float damage) {
+            float average = damage / followers.Count;
+            foreach (Follower f in followers) {
+                f.changeHealthPoints(-(int)average);
+            }
+        }
+
+        // updates the morale of each follower based on supplies
+        public void updateHealthPoints() {
+            foreach (Follower f in followers) {
+                if (this.supplies < this.getFoodConsumption()) {
+                    f.changeHealthPoints(-1);
+                } else {
+                    f.changeHealthPoints(1);
+                }
+            }
+        }
+
+        public void checkFollowersHealthPoints() {
+            Follower f;
+            for (int i = 0; i < followers.Count; i++) {
+                f = followers[i];
+                if (f.getHealthPoints() <= 0) {
+                    followers.RemoveAt(i);
+                    i--; // adjust to acount for removing
+                }
+            }
+        }
+
+        private void checkPlayerAlive() {
+            if (followers.Count == 0) {
+                this.kill();
+            }
+        }
+
+        public int getFoodConsumption() {
+            int sum = 0;
+            foreach (Follower f in followers) {
+                sum += f.getFoodDemand();
+            }
+            return sum;
+        }
+
+        public int computeStrength() {
+            int sum = 0;
+            foreach (Follower f in followers) {
+                sum += f.getStrength();
+            }
+            return sum;
+        }
+
+        public float computeMorale() {
+            float sum = 0;
+            foreach (Follower f in followers) {
+                sum += f.getMorale();
+            }
+            return (followers.Count == 0) ? 0 : sum / followers.Count;
+        }
+
+        public void addFollower(Follower f) {
+            this.followers.Add(f);
+        }
+        public void setPos(Tile pos) {
+            this.tilePos = pos;
+        }
+
+        // getters
+        public Tile getPosTile() {
+            return this.tilePos;
+        }
+        public Vector3 getPos() {
+            return this.tilePos.getPos();
+        }
+        public Vector2 getPosIndex() {
+            return this.tilePos.index;
+        }
+        public int getActionPoints() {
+            return this.actionPoints;
+        }
+        public int getMaxActionPoints() {
+            return maxActionPoints;
+        }
+        public List<Resource> getResources() {
+            return this.resources;
+        }
+        public int getSupplies() {
+            return this.supplies;
+        }
+        public string getFollowersAsString() {
+            string s = "";
+            foreach (Follower f in followers) {
+                s += f + "\n";
+            }
+            return s;
+        }
+        public List<Follower> getFollowers() {
+            return this.followers;
+        }
+
+        public bool getCampStatus() {
+            return encampment;
+        }
+        public bool getCampStatus(out string message) {
+            message = "";
+            return encampment;
+        }
+        public bool getCurrentUpgrades(out string message) {
+            message = "";
+            return false;
+        }
+        public bool getPossibleUpgrades(out string message) {
+            message = "";
+            return false;
+        }
+        override
+        public string ToString() {
+            string str = "";
+            str += "Player info:\nPosition: " + getPos() +
+            "\nCoordinates: " + getPosIndex() +
+            "\nEncampment: " + getCampStatus() +
+            "\nAction points: " + getActionPoints() +
+            "\nStrength: " + computeStrength() +
+            "\nMorale: " + computeMorale() +
+            "\nSupplies: " + getSupplies() +
+            "\nSupplies Consumption per turn: " + getFoodConsumption() +
+            "\nFollowers:\n" + getFollowersAsString();
+            return str;
+        }
+
+        // actions
+
+        public void loseActionPoints(int actionPointsToLose) {
+            if (this.actionPoints >= actionPointsToLose) {
+                this.actionPoints -= actionPointsToLose;
+            }
+        }
+        public bool attemptedMove(Vector3 moveToPos, out string message) {
+            message = "Player move failed.";
+            if (getPos() == moveToPos) {
+                message = "Player move successful.";
+                return true;
+            }
+            return false;
+        }
+        public bool changeCampStatus(out string message) {
+            message = "";
+
+            if (encampment) { // if in camp
+                if (actionPoints - actionPointsToLeave >= 0) {
+                    encampment = false;
+                    loseActionPoints(actionPointsToLeave);
+                    message += "Successfully left camp.";
+                    this.notifyView();
+                    return true;
+                }
+                message = "Failed to leave camp.";
+            } else { // if not in camp
+                if (actionPoints - actionPointsToEncamp >= 0) {
+                    encampment = true;
+                    loseActionPoints(actionPointsToEncamp);
+                    message += "Successfully built camp.";
+                    this.notifyView();
+                    return true;
+                }
+                message = "Failed to build camp.";
+            }
+            return false;
+        }
+        public bool doQuest(out string message) {
+            message = "";
+            return false;
+        }
+        public bool doUpgrade(out string message) {
+            message = "";
+            return false;
+        }
+        public bool gatherResource(out string message) {
+            message = "";
+            return false;
+        }
     }
 
-    public void initPlayer() {
-        addFollower(new Swordsman());
-        addFollower(new Swordsman());
-        addFollower(new Wizard());
-        this.encampment = false;
-        this.actionPoints = maxActionPoints;
-        this.supplies = startingSupplies;
-        this.maxSupplies = startingMaxSupplies;
+    public class PlayablePlayer : Player {
+        override
+        public void initPlayer() {
+            addFollower(new Swordsman());
+            addFollower(new Swordsman());
+            addFollower(new Wizard());
+        }
     }
 
-    public void newTurn() {
-        // pre updates
-        updateMorale();
-        updateFollowers();
-        this.supplies -= getFoodConsumption();
-        if (this.supplies < 0) this.supplies = 0;
+    public class NonPlayablePlayer : Player {
 
-        // post updates
-        if (encampment) { // in camp
-            playerAddSupplies((int)(tilePos.fertility * suppliesPerFertilityPoint));
-        } else { // not in camp
+        public ArtificialIntelligence playerAI;
+
+        public NonPlayablePlayer(int supplies, int strength) : base(){
+
+            playerAI = new ArtificialIntelligence(this);
+
+            this.supplies = supplies;
+
+            while (this.computeStrength() < strength) {
+                Follower f;
+
+                // randomize selection of f
+                f = new Swordsman();
+
+                if (this.computeStrength() + f.getStrength() <= strength)
+                    this.addFollower(f);
+                else
+                    break;
+            }
+        }
+
+        override
+        public void initPlayer() {     
             // do nothing
         }
-        
-        // final updates
-        this.actionPoints = maxActionPoints;
+
+        override
+        public void newTurn() {
+            // final updates
+            this.actionPoints = maxActionPoints;
+            this.playerAI.processNewTurn();
+        }
     }
 
-    public void playerAddSupplies(int suppliesToAdd) {
-        this.supplies += suppliesToAdd;
-        if (this.supplies > maxSupplies)
-            this.supplies = maxSupplies;
-    }
+    public class ArtificialIntelligence {
 
-    // updates the morale of each follower based on supplies
-    public void updateMorale() {
+        public static float difficulty = 1f;
 
-        float adjustement, morale_adjusted;
+        public static float distanceToPlayerToAttack = 50f;
 
-        foreach (Follower f in followers) {
+        public enum Behaviour { idle, wandering, attacking, healing };
+        public int behaviourState;
 
-            if (this.supplies < this.getFoodConsumption()) {
-                adjustement = moraleDown * (1 - f.getWillpower());
-                morale_adjusted = f.getMorale() - adjustement;
+        PathFinder DijsktraPF, AstarPF;
+
+        Player player;
+
+        public ArtificialIntelligence(Player p) {
+            behaviourState = (int)Behaviour.idle;
+            this.DijsktraPF = new DijkstraPathFinder(maxDepth: p.getMaxActionPoints(),
+                                                maxCost: p.getActionPoints(),
+                                                maxIncrementalCost: p.getMaxActionPoints());
+            this.AstarPF = new AstarPathFinder(maxDepth: p.getMaxActionPoints(),
+                                                maxCost: p.getActionPoints(),
+                                                maxIncrementalCost: p.getMaxActionPoints());
+            this.player = p;
+        }
+
+        public void processNewTurn() {
+            if (behaviourState == (int)Behaviour.idle) {
+                behaviourState = (int)Behaviour.wandering;
+            } else if (behaviourState == (int)Behaviour.wandering) {
+                //if (false) // TODO add condition on player HPs here
+                //    behaviourState = (int)Behaviour.healing;
+                //else if ((this.player.getPos() - GameControl.gameSession.humanPlayer.getPos()).magnitude < distanceToPlayerToAttack)
+                //    behaviourState = (int)Behaviour.attacking;
+                //else
+                wander();
+            } else if (behaviourState == (int)Behaviour.attacking) {
+
+            } else if (behaviourState == (int)Behaviour.healing) {
+
             } else {
-                adjustement = moraleUp * (1 - f.getMorale()) * (1 + f.getWillpower());
-                morale_adjusted = f.getMorale() + adjustement;
-            }
-
-            if (morale_adjusted > 1f)
-                morale_adjusted = 1f;
-            if (morale_adjusted < 0f)
-                morale_adjusted = 0f;
-
-            f.setMorale(morale_adjusted);
-        }
-    }
-
-    private void updateFollowers() {
-        Follower f;
-        for (int i = 0; i < followers.Count; i++) {
-            f = followers[i];
-            if ( f.getStrength() < followerDeathThreshold ) {
-                followers.RemoveAt(i);
+                // some weirdness
+                behaviourState = (int)Behaviour.idle;
             }
         }
-    }
 
-    public int getFoodConsumption() {
-        int sum = 0;
-        foreach (Follower f in followers) {
-            sum += f.getFoodDemand();
-        }
-        return sum;
-    }
+        private void wander() {
+            // get move range
+            PathResult pr = DijsktraPF.pathFromTo(
+                            this.player.getPosTile(),
+                            new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
+                            playersCanBlockPath: true
+                            );
 
-    public int computeStrength() {
-        int sum = 0;
-        foreach (Follower f in followers) {
-            sum += f.getStrength();
-        }
-        return sum;
-    }
+            int rand = UnityEngine.Random.Range(0, pr.getExploredTiles().Count);
 
-    public float computeMorale() {
-        float sum = 0;
-        foreach (Follower f in followers) {
-            sum += f.getMorale();
-        }
-        return (followers.Count == 0) ? 0 : sum / followers.Count;
-    }
-
-    public void addFollower(Follower f) {
-        this.followers.Add(f);
-    }
-    public void setPos(Tile pos) {
-        this.tilePos = pos;
-    }
-
-    // getters
-    public Tile getPosTile() { 
-        return this.tilePos;
-    }
-    public Vector3 getPos() {
-        return this.tilePos.getPos();
-    }
-    public Vector2 getPosIndex() { 
-        return this.tilePos.index;
-    }
-    public int getActionPoints() {
-        return this.actionPoints;
-    }
-    public int getMaxActionPoints() {
-        return maxActionPoints;
-    }
-    public List<Resource> getResources() {
-        return this.resources;
-    }
-    public int getSupplies() {
-        return this.supplies;
-    }
-    public string getFollowersAsString() {
-        string s = "";
-        foreach (Follower f in followers) {
-            s += f + "\n";
-        }
-        return s;
-    }
-
-    public bool getCampStatus() {
-        return encampment;
-    }
-    public bool getCampStatus(out string message) {
-        message = "";
-        return false;
-    }
-    public bool getCurrentUpgrades(out string message) {
-        message = "";
-        return false;
-    }
-    public bool getPossibleUpgrades(out string message) {
-        message = "";
-        return false;
-    }
-
-    // actions
-
-    public void loseActionPoints(int actionPointsToLose) {
-        if (this.actionPoints >= actionPointsToLose) {
-            this.actionPoints -= actionPointsToLose;
+            string message;
+            GameControl.gameSession.playerAttemptMove(this.player, pr.getExploredTiles()[rand], out message, movePlayer: true);
         }
     }
-    public bool attemptedMove(Vector3 moveToPos, out string message) {
-        message = "Player move failed.";
-        if (getPos() == moveToPos) {
-            message = "Player move successful.";
-            return true;
-        }
-        return false;
-    }
-    public bool changeCampStatus(out string message) {
-        message = "";
-        
-        if (encampment) { // if in camp
-            if (actionPoints - actionPointsToLeave >= 0) {
-                encampment = false;
-                loseActionPoints(actionPointsToLeave);
-                message += "Successfully left camp.";
-                return true;
-            }
-            message = "Failed to leave camp.";
-        } else { // if not in camp
-            if (actionPoints - actionPointsToEncamp >= 0) {
-                encampment = true;
-                loseActionPoints(actionPointsToEncamp);
-                message += "Successfully built camp.";
-                return true;
-            }
-            message = "Failed to build camp.";
-        }
-        return false;
-    }
-    public bool doQuest(out string message) {
-        message = "";
-        return false;
-    }
-    public bool doUpgrade(out string message) {
-        message = "";
-        return false;
-    }
-    public bool gatherResource(out string message) {
-        message = "";
-        return false;
-    }
-
 }
+

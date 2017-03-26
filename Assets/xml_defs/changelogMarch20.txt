@@ -1,3 +1,99 @@
+
+
+################################################################################
+March 26 Changelog:
+
+-Added changelog
+
+CameraControl
+    -Improved and balanced zoom in/out camera inertia
+    -Added center on player mechanic
+    -Added center on player at the start of game
+    -Updating camera restriction point based on player position
+
+GameControl:
+    -Frame rate target set to 30 (a lot of animations depend on this = not good, but will do for now)
+    -Improved button layout
+    -Added 'Center on player' button
+
+MouseControl:
+    -Added display of path cost
+    -Moving the player now resets move mode
+
+GameSession:
+    -Added player battle mechanics
+    -Added player battle bonus system
+    -Added AI players
+    -Adjusted newTurn logic to contain Ai player management
+    -Adjusted player move mechanics
+    -Added player death logic
+    -Added code to check for player at position
+    -Adjustments for new pathfinding interface
+
+Pathfinding:
+    -Refactored PathTile variables
+    -Added better PathTile getter functions (start tile first vs goal tile first)
+    -Changed PathFinder interface to work without reference to static region variable in GameControl
+    -Added logic for players blocking paths
+    -Moved pathFromTo function to parent class from child classes 
+
+HexRegion:
+    -Adjusted getTileAt function
+    -Bug fixes to erosion computation
+    -Added randomized erosion water deposition to areas mechanics
+    -Adjusted water level computations to more accurately reflect min/max parameters (now works more with the median elevation as opposed to average elevation)
+
+Followers:
+    -Changed initialization logic
+    -Added Health Points mechanic
+    -Added Peasant and Archer Follower types
+
+Player:
+    -Added new package Playable, containing Player, and subtypes of Player, PlayablePlayer and NonPlayablePlayer
+    -Removed old ViewablePlayer interface
+    -Added new ViewablePlayer interface in package Viewable
+    -Adjusted encampment logic
+    -Adjusted newTurn logic to contain Health Point updates
+    -Added player death mechanic (player dies upon death of all followers)
+    -Added check player alive logic
+    -Added player kill logic
+    -Added player distribute damage to followers logic
+    -Added Artificial Intelligence logic for NonPlayablePlayer
+    -Added Artificial Intelligence behaviour states: idle, wandering, attacking, healing
+    -Added Wander AI behaviour: uses pathfinding to move to a random position within move range
+
+CloudView:
+    -Added clouds to the game view
+    -Added cloud movement using speed and direction
+    -Added cloud quality, size, and other misc. controls
+
+EntityView:
+    -Added EntityView which extends PlayerView
+    -Animation and view system for all players (for both Playable and NonPlayable players)
+    -Added entity redraw mechanics
+    -Added entity move animation
+    -Added destroy logic 
+    -Added death animation
+    -Added range check for redrawing
+    -Added destroy on entity out of range
+
+PlayerView:
+    -Replaced this by EntityView
+
+View:
+    -Added global View class for all GameView classes
+    -Added global view distance parameter
+    - TODO: most view classes still dont extend this
+
+Viewable:
+    -Added ViewablePlayer and PlayerView abstract classes
+    -Observer pattern for objects and views
+    -Added notify
+    -Added notifyDestroy
+    -Added notifyMovevement
+
+################################################################################
+
 March 20 Changelog:
 
 CameraControl

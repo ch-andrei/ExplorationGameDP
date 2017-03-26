@@ -2,6 +2,7 @@
 //Filename: KeyboardCameraControl.cs
 //
 
+using System.Collections;
 using UnityEngine;
 using System;
 
@@ -12,13 +13,21 @@ public class CameraControl : MonoBehaviour {
 
     static float viewCenterOffset = 200f;
 
-    static int cameraLimitDistance = 2500;
-    static int cameraToGroundOffset = 75;
-    static int maxCameraToGroundDistance = 250;
+    private static bool toggleCenterPointFocus = false;
+    private static bool centeringOnPlayer = false;
+
+    static float viewCenterOnPlayerOffset = 75f; // how far from player position the camera will be set when focusing on player
+    static float viewCenterOnPlayerLimiterInertia = 0.5f; // how 
+
+    // distances in Unity units
+    static int cameraLimitDistance = 250; // how far camera can move away from the player
+    static int minCameraToGroundDistance = 20; // how close to ground the camera can go before limiter will start resisting
+    static int maxCameraToGroundDistance = 150; // how high camera can go before limiter will start resisting
 
     static float limiterInertia = 0.1f;
-    static float cameraTooHighLimiterSpeed = 1.5f;
-    static float cameraTooLowLimiterSpeed = 2.5f;
+    // speed limiter must be adjusted given maxCameraToGroundDistance; shorter max dist requires higher limiter
+    static float cameraTooHighSpeedLimiter = 1.5f; // lower means less resistance
+    static float cameraTooLowSpeedLimiter = 5f; // this one needs to be resistive otherwise camera will dip into objects
 
     static float global_sensitivity = 1F;
 
@@ -75,16 +84,14 @@ public class CameraControl : MonoBehaviour {
     public string keyboardHorizontalAxisName = "Horizontal";
     public string keyboardVerticalAxisName = "Vertical";
 
-
     private string[] keyboardAxesNames;
 
     void Start() {
         keyboardAxesNames = new string[] { keyboardHorizontalAxisName, keyboardVerticalAxisName };
 
-        float offset = 0; // MapGenerator.getRegion().getViewableSize() / 2;
-        transform.position = new Vector3(offset, GameControl.gameSession.mapGenerator.getRegion().getMaximumElevation() * 1.2f, offset);
+        transform.position = getCameraPositionPlayerCentered();
 
-        restrictionCenterPoint = new Vector3(); // TODO get player
+        restrictionCenterPoint = GameControl.gameSession.humanPlayer.getPos();
 
         viewCenterPoint = new Vector3();
     }
@@ -92,13 +99,21 @@ public class CameraControl : MonoBehaviour {
     // LateUpdate  is called once per frame after all Update are done
     void LateUpdate() {
 
+        if (toggleCenterPointFocus && !centeringOnPlayer) {
+            toggleCenterPointFocus = false;
+            centeringOnPlayer = true;
+            StartCoroutine(startCenteringOnPlayer());
+        }
+
         Vector3 cameraPos = this.transform.position,
             cameraDir = this.transform.forward;
 
         cameraPos.y = 0;
         cameraDir.y = 0;
 
-        viewCenterPoint = cameraPos + cameraDir.normalized * viewCenterOffset;
+        // update view center 
+        restrictionCenterPoint = GameControl.gameSession.humanPlayer.getPos();
+        viewCenterPoint = cameraPos + cameraDir * viewCenterOffset;
 
         // COMPUTE MOVEMENT
         if (yaw.isActivated()) { // camera rotate left/right
@@ -133,7 +148,23 @@ public class CameraControl : MonoBehaviour {
         limitCamera();
     }
 
-    public void limitCamera() {
+    public static void toggleCenterOnPlayer() {
+        toggleCenterPointFocus = !toggleCenterPointFocus;
+    }
+
+    private IEnumerator startCenteringOnPlayer(float centeredThreshold = 1f) {
+        Vector3 vectorToPlayer = getCameraPositionPlayerCentered() - transform.position;
+        while (vectorToPlayer.magnitude > centeredThreshold) {
+            // move cam towards player
+            transform.position += vectorToPlayer.normalized * vectorToPlayer.magnitude * viewCenterOnPlayerLimiterInertia;
+            // update distance to player
+            vectorToPlayer = getCameraPositionPlayerCentered() - transform.position;
+            yield return null;
+        }
+        centeringOnPlayer = false;
+    }
+
+    private void limitCamera() {
         // check if camera is out of bounds 
         Vector3 posRelative = transform.position - restrictionCenterPoint;
         if (posRelative.x > cameraLimitDistance) {
@@ -147,20 +178,21 @@ public class CameraControl : MonoBehaviour {
             transform.position -= new Vector3(0, 0, posRelative.z + cameraLimitDistance);
         }
         // adjust camera height based on terrain
+        float waterLevel = GameControl.gameSession.mapGenerator.getRegion().getWaterLevelElevation();
+        float offsetAboveWater = transform.position.y - (waterLevel) - minCameraToGroundDistance;
+        if (offsetAboveWater < 0) { // camera too low based on water elevation
+            transform.position -= new Vector3(0, offsetAboveWater, 0) * limiterInertia * cameraTooLowSpeedLimiter;
+        } 
         try {
             Vector3 tileBelow = GameControl.gameSession.mapGenerator.getRegion().getTileAt(transform.position).getPos();
-            float waterLevel = GameControl.gameSession.mapGenerator.getRegion().getWaterLevelElevation();
 
-            float heightAboveGround =  transform.position.y - (tileBelow.y) - cameraToGroundOffset;
-            float heightAboveWater = transform.position.y - (waterLevel) - cameraToGroundOffset;
-            float heightBelowCeiling = tileBelow.y + maxCameraToGroundDistance - (transform.position.y);
+            float offsetAboveGround = transform.position.y - (tileBelow.y) - minCameraToGroundDistance;
+            float offsetBelowCeiling = tileBelow.y + maxCameraToGroundDistance - (transform.position.y);
 
-            if (heightAboveGround < 0) { // camera too low based on tile height
-                transform.position -= new Vector3(0, heightAboveGround, 0) * limiterInertia * cameraTooLowLimiterSpeed;
-            } else if (heightAboveWater < 0) { // camera too low based on water elevation
-                transform.position -= new Vector3(0, heightAboveWater, 0) * limiterInertia * cameraTooLowLimiterSpeed;
-            } else if (heightBelowCeiling < 0) { // camera too high 
-                transform.position += new Vector3(0, heightBelowCeiling, 0) * limiterInertia * cameraTooHighLimiterSpeed;
+            if (offsetAboveGround < 0) { // camera too low based on tile height
+                transform.position -= new Vector3(0, offsetAboveGround, 0) * limiterInertia * cameraTooLowSpeedLimiter;
+            } else if (offsetBelowCeiling < 0) { // camera too high 
+                transform.position += new Vector3(0, offsetBelowCeiling, 0) * limiterInertia * cameraTooHighSpeedLimiter;
             }
         } catch (NullReferenceException e) {
             // do nothing
@@ -168,7 +200,7 @@ public class CameraControl : MonoBehaviour {
         
     }
 
-    public void centerOnPlayer() {
-        // TODO
+    public Vector3 getCameraPositionPlayerCentered() {
+        return GameControl.gameSession.humanPlayer.getPos() - transform.forward * viewCenterOnPlayerOffset;
     }
 }

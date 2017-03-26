@@ -14,18 +14,29 @@ namespace Followers {
 
         private int strength;
 
+        private int healthPoints, maxHeathPoints;
+
         //List<Upgrade> upgrades;
 
         private int foodDemand;
 
         public Follower(string followerType) {
             this.followerType = followerType;
-            this.setFoodDemand(int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "foodDemand")));
-            this.setMorale(float.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "morale")));
-            this.setStrength(int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "strength")));
-            this.setWillpower(float.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "willpower")));
+            foodDemand = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "foodDemand")));
+            morale = (float.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "morale")));
+            strength = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "strength")));
+            healthPoints = maxHeathPoints = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "health")));
+            willpower = (float.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "willpower")));
         }
 
+        public void changeHealthPoints(int hpChange) {
+            this.healthPoints += hpChange;
+            if (this.healthPoints < 0) {
+                this.healthPoints = 0;
+            } else if (this.healthPoints > maxHeathPoints) {
+                this.healthPoints = maxHeathPoints;
+            }
+        }
         public int getFoodDemand() {
             return this.foodDemand;
         }
@@ -37,6 +48,9 @@ namespace Followers {
         }
         public int getStrength() {
             return (int)(strength * this.morale);
+        }
+        public int getHealthPoints() {
+            return this.healthPoints;
         }
         public float getWillpower() {
             return this.willpower;
@@ -55,7 +69,7 @@ namespace Followers {
         }
         override
         public string ToString() {
-            return "" + this.followerType + ": S " + getStrength() + "/" + getStrengthBeforeMorale() + ", M " + this.morale;
+            return "" + this.followerType + ": S " + getStrength() + "/" + getStrengthBeforeMorale() + ", H " + getHealthPoints() + ", M " + this.morale;
         }
     }
 
@@ -68,6 +82,16 @@ namespace Followers {
 
     public class Swordsman : Follower {
         public Swordsman() : base("Swordsman") {
+        }
+    }
+
+    public class Peasant : Follower {
+        public Peasant() : base("Peasant") {
+        }
+    }
+
+    public class Archer : Follower {
+        public Archer() : base("Archer") {
         }
     }
 }

@@ -6,16 +6,14 @@ using System;
 using TileViews;
 using Tiles;
 
-public class MapView : MonoBehaviour {
+using Viewable;
 
-    public int updatesPerFrame = 5;
+public class MapView : View {
+
+    public int updatesPerFrame = 8;
 
     // states for redrawing the views
     public enum States { notupdated, destroyQueued, destroying, destroyed, setupQueued, settingup, setupDone, updated };
-
-    int state = (int)States.notupdated;
-    int destroyState = (int)States.destroyed;
-    int setupState = (int)States.setupDone;
 
     // imported prefab dimensions
     public const float prefabElevation = 200f;
@@ -32,14 +30,15 @@ public class MapView : MonoBehaviour {
 
     public static string[] tileAssets; // TODO
 
+    int state = (int)States.notupdated;
+    int destroyState = (int)States.destroyed;
+    int setupState = (int)States.setupDone;
+
     // must set this in editor -> this will be instantiated to create each hex tile in the game world
-    public TileView tile;
+    public TileView tile; // TODO just load prefab from Ressources
 
     // location from which the view distance will be calculated
     public static Vector3 viewCenterPoint;
-
-    // up until how far from viewCenterPoint tiles will still be drawn
-    public static float drawDistance = 500f;
 
     // customize in editor
     // tree parameters
@@ -126,7 +125,7 @@ public class MapView : MonoBehaviour {
             distanceToChild = childPos - viewCenterPoint;
 
             // destroy only if outside of drawn range or if tileview's tile is 'dirty'
-            if ((distanceToChild).magnitude > drawDistance || drawnTile.tile.dirty) {
+            if ((distanceToChild).magnitude > GlobalDrawDistance || drawnTile.tile.dirty) {
 
                 // destroy game object
                 GameObject.Destroy(drawnTile.gameObject);
@@ -140,7 +139,7 @@ public class MapView : MonoBehaviour {
 
             if (yieldCounter-- < 0) {
                 yieldCounter = updatesPerFrame;
-                yield return null;
+                yield return null; // wait for next frame
             }
            
         }
@@ -162,7 +161,7 @@ public class MapView : MonoBehaviour {
 
             Vector3 distanceToTile = (tilePos - viewCenterPoint);
 
-            if (distanceToTile.magnitude <= drawDistance) {
+            if (distanceToTile.magnitude <= GlobalDrawDistance) {
 
                 if (drawUnderWater || tile.elevationToWater >= 0) {
 

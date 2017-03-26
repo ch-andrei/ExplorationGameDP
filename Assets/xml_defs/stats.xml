@@ -16,68 +16,72 @@
             <n>10000</n>
             <seed>0</seed>
             <region_size>5000</region_size>
-            <elevation>1000</elevation>
+            <elevation>500</elevation>
             <rivers>0</rivers>
-            <water>0.65</water>
+            <water>0.7</water>
             <noise_resolution>200</noise_resolution>
             <noise_amplitude>0.7</noise_amplitude>
-            <noise_persistance>0.75</noise_persistance>
+            <noise_persistance>0.5</noise_persistance>
         </default>
 
         <amplified>
             <n>20000</n>
             <seed>250</seed>
-            <region_size>2500</region_size>
-            <elevation>500</elevation>
+            <region_size>6500</region_size>
+            <elevation>250</elevation>
             <rivers>50</rivers>
-            <water>0.6</water>
-            <noise_resolution>250</noise_resolution>
-            <noise_amplitude>3</noise_amplitude>
-            <noise_persistance>0.45</noise_persistance>
+            <water>0.45</water>
+            <noise_resolution>300</noise_resolution>
+            <noise_amplitude>0.1</noise_amplitude>
+            <noise_persistance>0.05</noise_persistance>
         </amplified>
     </MapGeneratorInput>
 
     <player>
-       <actionPoints>5</actionPoints>
-       <actionPointsEncamp>4</actionPointsEncamp>
-       <actionPointsLeave>5</actionPointsLeave>
-       <actionPoints>5</actionPoints>
-       <fertilitySupplies>10</fertilitySupplies>  
-       <startingSupplies>250</startingSupplies>
-       <startingMaxSupplies>500</startingMaxSupplies>
-       <moraleup>0.10</moraleup>
-       <moraledown>0.15</moraledown>
-   </player>
+        <actionPoints>5</actionPoints>
+        <actionPointsEncamp>4</actionPointsEncamp>
+        <actionPointsLeave>5</actionPointsLeave>
+        <actionPoints>5</actionPoints>
+        <fertilitySupplies>10</fertilitySupplies>  
+        <startingSupplies>250</startingSupplies>
+        <startingMaxSupplies>500</startingMaxSupplies>
+        <moraleup>0.10</moraleup>
+        <moraledown>0.15</moraledown>
+    </player>
 
-   <followers>
-       <Swordsman>
-        <foodDemand>5</foodDemand>
-        <morale>0.75</morale>
-        <strength>9</strength>
-        <willpower>0.15</willpower>
-    </Swordsman>
+    <followers>
+        <Swordsman>
+            <foodDemand>5</foodDemand>
+            <morale>0.75</morale>
+            <strength>9</strength>
+            <health>9</health>
+            <willpower>0.15</willpower>
+        </Swordsman>
 
-    <PeasantArcher>
-        <foodDemand>4</foodDemand>
-        <morale>0.55</morale>
-        <strength>5</strength>
-        <willpower>0</willpower>
-    </PeasantArcher>
+        <PeasantArcher>
+            <foodDemand>4</foodDemand>
+            <morale>0.55</morale>
+            <strength>5</strength>
+            <health>4</health>
+            <willpower>0</willpower>
+        </PeasantArcher>
 
-    <Archer>
-        <foodDemand>5</foodDemand>
-        <morale>0.75</morale>
-        <strength>11</strength>
-        <willpower>0.15</willpower>
-    </Archer>
+        <Archer>
+            <foodDemand>5</foodDemand>
+            <morale>0.75</morale>
+            <strength>11</strength>
+            <health>6</health>
+            <willpower>0.15</willpower>
+        </Archer>
 
-    <Wizard>
-        <foodDemand>8</foodDemand>
-        <morale>0.95</morale>
-        <strength>18</strength>
-        <willpower>0.45</willpower>
-    </Wizard>
-</followers>
+        <Wizard>
+            <foodDemand>8</foodDemand>
+            <morale>0.95</morale>
+            <strength>20</strength>
+            <health>8</health>
+            <willpower>0.45</willpower>
+        </Wizard>
+    </followers>
 
 </stats>
 
