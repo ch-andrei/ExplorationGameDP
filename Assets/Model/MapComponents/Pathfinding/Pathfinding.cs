@@ -79,6 +79,12 @@ namespace Pathfinding {
         public float maxCost { get; set; }
         public float maxIncrementalCost { get; set; }
 
+        public PathFinder(int maxDepth, float maxCost, float maxIncrementalCost) {
+            this.maxDepth = maxDepth;
+            this.maxCost = maxCost;
+            this.maxIncrementalCost = maxIncrementalCost;
+        }
+
         // assumes the tiles are adjacent to each other
         public virtual float costBetween(PathTile t1, PathTile t2) {
             float cost = 1f; // base cost between tiles
@@ -103,14 +109,90 @@ namespace Pathfinding {
         public abstract PathResult pathFromTo(HexRegion _region, Tile start, Tile goal, bool playersCanBlockPath = false);
     }
 
+    public class LongDistancePathFinder : PathFinder {
+
+        private static int _maxDepth = 25;
+        private static float _maxCost = 500;
+
+        DijkstraPathFinder DijsktraPF;
+        AstarPathFinder AstarPF;
+
+        public LongDistancePathFinder(int maxDepth, float maxCost, float maxIncrementalCost) : base(maxDepth, maxCost, maxIncrementalCost){
+            DijsktraPF = new DijkstraPathFinder(maxDepth, maxCost, maxIncrementalCost);
+            AstarPF = new AstarPathFinder(_maxDepth, _maxCost, maxIncrementalCost);
+        }
+
+        override
+        public PathResult pathFromTo(HexRegion _region, Tile start, Tile goal, bool playersCanBlockPath = false) {
+            // attempt normal Dijsktra pathfinder first
+            PathResult pr = DijsktraPF.pathFromTo(
+                            _region,
+                            start,
+                            goal,
+                            playersCanBlockPath
+                            );
+
+            if (pr.reachedGoal) {
+                return pr;
+            }
+
+            // get full path to tile even if its out of range
+            PathResult prA = AstarPF.pathFromTo(
+                            _region,
+                            start,
+                            GameControl.gameSession.humanPlayer.getTilePos(),
+                            playersCanBlockPath
+                            );
+
+            // get move range
+            PathResult prD = DijsktraPF.pathFromTo(
+                            _region,
+                            start,
+                            new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
+                            playersCanBlockPath
+                            );
+
+            // get the last tile given by astar pathfinder to goal that is still within move range
+            Tile _goal = null;
+            if (prA.reachedGoal) {
+                foreach (Tile t in prA.getTilesOnPathStartFirst()) {
+                    bool outOfRange = true;
+                    foreach (Tile explored in prD.getExploredTiles()) {
+                        if (t.getPos() == explored.getPos()) {
+                            _goal = t;
+                            outOfRange = false;
+                            break;
+                        }
+                    }
+                    if (outOfRange)
+                        break;
+                }
+            }
+
+            if (_goal != null) {
+                return DijsktraPF.pathFromTo(
+                            _region,
+                            start,
+                            _goal,
+                            playersCanBlockPath
+                            );
+            } else {
+                return prD;
+            }
+        }
+
+        override
+        public PathResult pathFromTo(Tile start, Tile goal, bool playersCanBlockPath = false) {
+            return pathFromTo(GameControl.gameSession.mapGenerator.getRegion() as HexRegion, start, goal, playersCanBlockPath);
+        }
+
+    }
+
     public abstract class HeuristicPathFinder : PathFinder{
 
         public static float heuristicDepthInfluence = 1e-3f; // nudges priorities for tie breaking
 
-        public HeuristicPathFinder(int maxDepth, float maxCost, float maxIncrementalCost) {
-            base.maxDepth = maxDepth;
-            base.maxCost = maxCost;
-            base.maxIncrementalCost = maxIncrementalCost;
+        public HeuristicPathFinder(int maxDepth, float maxCost, float maxIncrementalCost) : base(maxDepth, maxCost, maxIncrementalCost) {
         }
 
         public virtual PathResult pathFromTo(HexRegion region, Tile start, Tile goal, HeuristicPathFinder heuristic, bool playersCanBlockPath = false) {
@@ -214,16 +296,15 @@ namespace Pathfinding {
             return pathResult;
         }
 
-        // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
-        public virtual PathResult pathFromTo(Tile start, Tile goal, HeuristicPathFinder heuristic, bool playersCanBlockPath = false) {
-            HexRegion region = GameControl.gameSession.mapGenerator.getRegion() as HexRegion;
-
-            return pathFromTo(region, start, goal, heuristic, playersCanBlockPath);
-        }
-
         override
         public PathResult pathFromTo(Tile start, Tile goal, bool playersCanBlockPath = false) {
             return pathFromTo(start, goal, this, playersCanBlockPath);
+        }
+
+        // inspired by http://www.redblobgames.com/pathfinding/a-star/introduction.html
+        public virtual PathResult pathFromTo(Tile start, Tile goal, HeuristicPathFinder heuristic, bool playersCanBlockPath = false) {
+            HexRegion region = GameControl.gameSession.mapGenerator.getRegion() as HexRegion;
+            return pathFromTo(region, start, goal, heuristic, playersCanBlockPath);
         }
 
         override

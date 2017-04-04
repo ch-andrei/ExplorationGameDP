@@ -5,6 +5,8 @@ using UnityEngine;
 namespace Followers {
     public class Follower {
 
+        public int recruitCost { get; }
+
         [Range(0f, 1f)]
         private float morale;
 
@@ -27,6 +29,7 @@ namespace Followers {
             strength = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "strength")));
             healthPoints = maxHeathPoints = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "health")));
             willpower = (float.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "willpower")));
+            recruitCost = (int.Parse(Utilities.statsXMLreader.getParameterFromXML("followers/" + this.followerType, "recruitCost")));
         }
 
         public void changeHealthPoints(int hpChange) {
@@ -52,6 +55,9 @@ namespace Followers {
         public int getHealthPoints() {
             return this.healthPoints;
         }
+        public int getMaxHealthPoints() {
+            return this.maxHeathPoints;
+        }
         public float getWillpower() {
             return this.willpower;
         }
@@ -69,7 +75,20 @@ namespace Followers {
         }
         override
         public string ToString() {
-            return "" + this.followerType + ": S " + getStrength() + "/" + getStrengthBeforeMorale() + ", H " + getHealthPoints() + ", M " + this.morale;
+            return "" + getFollowerType() + ": " + statsAsString();
+        }
+        public string statsAsString(bool strength = true, bool health = true, bool morale = true) {
+            string stats = "";
+            if(strength)
+                stats += "S " + getStrength() + "/" + getStrengthBeforeMorale() + " ";
+            if (health)
+                stats += "HP " + getHealthPoints() + "/" + getMaxHealthPoints() + " ";
+            if (morale)
+                stats += "M " + (this.morale).ToString("0.0") + " ";
+            return stats;
+        }
+        public string getFollowerType() {
+            return this.followerType;
         }
     }
 
@@ -92,6 +111,11 @@ namespace Followers {
 
     public class Archer : Follower {
         public Archer() : base("Archer") {
+        }
+    }
+
+    public class PeasantArcher : Follower {
+        public PeasantArcher() : base("PeasantArcher") {
         }
     }
 }

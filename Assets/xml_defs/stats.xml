@@ -13,13 +13,13 @@
 
     <MapGeneratorInput>
         <default>
-            <n>10000</n>
+            <n>100000</n>
             <seed>0</seed>
-            <region_size>5000</region_size>
-            <elevation>500</elevation>
+            <region_size>15000</region_size>
+            <elevation>750</elevation>
             <rivers>0</rivers>
             <water>0.7</water>
-            <noise_resolution>200</noise_resolution>
+            <noise_resolution>500</noise_resolution>
             <noise_amplitude>0.7</noise_amplitude>
             <noise_persistance>0.5</noise_persistance>
         </default>
@@ -27,8 +27,8 @@
         <amplified>
             <n>20000</n>
             <seed>250</seed>
-            <region_size>6500</region_size>
-            <elevation>250</elevation>
+            <region_size>500</region_size>
+            <elevation>500</elevation>
             <rivers>50</rivers>
             <water>0.45</water>
             <noise_resolution>300</noise_resolution>
@@ -50,36 +50,50 @@
     </player>
 
     <followers>
-        <Swordsman>
-            <foodDemand>5</foodDemand>
-            <morale>0.75</morale>
-            <strength>9</strength>
-            <health>9</health>
-            <willpower>0.15</willpower>
-        </Swordsman>
 
-        <PeasantArcher>
+        <Peasant>
             <foodDemand>4</foodDemand>
-            <morale>0.55</morale>
+            <morale>0.4</morale>
             <strength>5</strength>
             <health>4</health>
             <willpower>0</willpower>
+            <recruitCost>25</recruitCost>
+        </Peasant>
+
+        <Swordsman>
+            <foodDemand>3</foodDemand>
+            <morale>0.75</morale>
+            <strength>9</strength>
+            <health>10</health>
+            <willpower>0.15</willpower>
+            <recruitCost>70</recruitCost>
+        </Swordsman>
+
+        <PeasantArcher>
+            <foodDemand>3</foodDemand>
+            <morale>0.55</morale>
+            <strength>7</strength>
+            <health>3</health>
+            <willpower>0</willpower>
+            <recruitCost>35</recruitCost>
         </PeasantArcher>
 
         <Archer>
-            <foodDemand>5</foodDemand>
+            <foodDemand>4</foodDemand>
             <morale>0.75</morale>
             <strength>11</strength>
             <health>6</health>
             <willpower>0.15</willpower>
+            <recruitCost>100</recruitCost>
         </Archer>
 
         <Wizard>
-            <foodDemand>8</foodDemand>
+            <foodDemand>5</foodDemand>
             <morale>0.95</morale>
             <strength>20</strength>
-            <health>8</health>
+            <health>9</health>
             <willpower>0.45</willpower>
+            <recruitCost>200</recruitCost>
         </Wizard>
     </followers>
 

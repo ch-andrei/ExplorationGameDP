@@ -12,6 +12,7 @@ public class EntityView : MonoBehaviour {
     public class PlayerViewObjects : PlayerView {
 
         private static Vector3 playerHeightOffset = new Vector3(0, 5, 0);
+        private static Vector3 playerStrengthIndicatorHeightOffset = new Vector3(0, 25, 0);
 
         // states for redrawing the views
         public enum ViewStates { playerModel, encampmentModel };
@@ -25,12 +26,16 @@ public class EntityView : MonoBehaviour {
 
         private bool dirty { get; set; }
         private bool withinDrawRange { get; set; }
+        private bool drawStrength { get; set; }
+
+        GameObject strengthIndicator = null;
 
         void Awake() {
             playerViewState = (int)ViewStates.playerModel;
             animatorMoveState = (int)MoveStates.idle;
             this.dirty = false;
             this.withinDrawRange = false;
+            this.drawStrength = true;
         }
 
         void Update() {
@@ -47,9 +52,12 @@ public class EntityView : MonoBehaviour {
             }
             if (dirty) {
                 outOfRangeDestroyGameObjects();
-                if (playerWithinDrawRange())
+                if (playerWithinDrawRange()) {
                     redrawPlayerView();
+                    dirty = false;
+                }
             }
+            redrawPlayerStrengthView();
         }
 
         public void initPlayerView(ViewablePlayer player) {
@@ -108,32 +116,50 @@ public class EntityView : MonoBehaviour {
             }
         }
 
+        private void redrawPlayerStrengthView() {
+            if (strengthIndicator != null)
+                Destroy(strengthIndicator);
+
+            strengthIndicator = Instantiate(Resources.Load("Prefabs/Text/TileCostObject"), this.transform) as GameObject;
+
+            // set position
+            Vector3 pos = (player as Player).getPos();
+            strengthIndicator.transform.position = pos + playerStrengthIndicatorHeightOffset;
+
+            // set text
+            string playerStrength = (player as Player).computeStrength() + "S";
+            strengthIndicator.transform.GetChild(0).GetComponent<TextMesh>().text = playerStrength;
+
+            strengthIndicator.transform.LookAt(Camera.main.transform);
+            strengthIndicator.transform.forward = -strengthIndicator.transform.forward; // fix for facing 
+        }
+
         private void redrawPlayerView() {
             if (playerViewState == (int)ViewStates.encampmentModel) {
                 string prefabName = "PlayerEncampment";
-                GameObject village = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
-                village.name = "Player Village";
+                GameObject villageObj = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
+                villageObj.name = "Player Village";
 
-                if (village != null) {
+                if (villageObj != null) {
                     float randRotation = Random.Range(0f, 360f);
-                    village.transform.Rotate(0, randRotation, 0);
+                    villageObj.transform.Rotate(0, randRotation, 0);
                 }
             } else if (playerViewState == (int)ViewStates.playerModel) {
                 if (this.player.GetType() == typeof(PlayablePlayer)) {
                     string prefabName = "Villager";
-                    GameObject _player = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
-                    _player.name = "Player";
+                    GameObject playerObj = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
+                    playerObj.name = "Player";
 
-                    if (_player != null) {
-                        _player.transform.position += playerHeightOffset;
+                    if (playerObj != null) {
+                        playerObj.transform.position += playerHeightOffset;
                     }
                 } else {
                     string prefabName = "PlayerCube";
-                    GameObject _player = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
-                    _player.name = "AIplayer";
+                    GameObject playerObj = Instantiate(Resources.Load("Prefabs/Player/" + prefabName), this.transform) as GameObject;
+                    playerObj.name = "AIplayer";
 
-                    if (_player != null) {
-                        _player.transform.position += playerHeightOffset;
+                    if (playerObj != null) {
+                        playerObj.transform.position += playerHeightOffset;
                     }
                 }
             }

@@ -18,16 +18,14 @@ namespace Playable {
         protected static int maxActionPoints = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPoints"));
         protected static int startingSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingSupplies"));
         protected static int startingMaxSupplies = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "startingMaxSupplies"));
-        
+
         protected static int actionPointsToLeave = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsLeave"));
         protected static int actionPointsToEncamp = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "actionPointsEncamp"));
-        
+
         protected static float moraleUp = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraleup"));
         protected static float moraleDown = float.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "moraledown"));
-        
+
         protected static int suppliesPerFertilityPoint = int.Parse(Utilities.statsXMLreader.getParameterFromXML("player", "fertilitySupplies"));
-        
-        protected static float followerDeathThreshold = 1e-3f;
 
         // Player variables
 
@@ -58,7 +56,6 @@ namespace Playable {
             this.maxSupplies = startingMaxSupplies;
             this._dead = false;
             this.id = DateTime.Now.Ticks;
-            Debug.Log("Made player with id " + this.id);
             initPlayer();
         }
 
@@ -153,6 +150,22 @@ namespace Playable {
             }
         }
 
+        public int getFollowersMaxHealth() {
+            int hpSum = 0;
+            foreach (Follower f in followers) {
+                hpSum += f.getMaxHealthPoints();
+            }
+            return hpSum;
+        } // meow - Jessy Yu
+
+        public int getFollowersHealth() {
+            int hpSum = 0;
+            foreach (Follower f in followers) {
+                hpSum += f.getHealthPoints();
+            }
+            return hpSum;
+        }
+
         private void checkPlayerAlive() {
             if (followers.Count == 0) {
                 this.kill();
@@ -186,18 +199,18 @@ namespace Playable {
         public void addFollower(Follower f) {
             this.followers.Add(f);
         }
-        public void setPos(Tile pos) {
+        public void setTilePos(Tile pos) {
             this.tilePos = pos;
         }
 
         // getters
-        public Tile getPosTile() {
+        public Tile getTilePos() {
             return this.tilePos;
         }
         public Vector3 getPos() {
             return this.tilePos.getPos();
         }
-        public Vector2 getPosIndex() {
+        public Vector2 getTilePosIndex() {
             return this.tilePos.index;
         }
         public int getActionPoints() {
@@ -211,6 +224,9 @@ namespace Playable {
         }
         public int getSupplies() {
             return this.supplies;
+        }
+        public int getMaxSupplies() {
+            return this.maxSupplies;
         }
         public string getFollowersAsString() {
             string s = "";
@@ -238,11 +254,22 @@ namespace Playable {
             message = "";
             return false;
         }
+        public List<Follower> getRecruitableFollowers() {
+            // TODO do this without hardcoding
+            List<Follower> recruitable = new List<Follower>();
+            recruitable.Add(new Peasant());
+            recruitable.Add(new PeasantArcher());
+            recruitable.Add(new Swordsman());
+            recruitable.Add(new Archer());
+            recruitable.Add(new Wizard());
+            return recruitable;
+        }
+
         override
         public string ToString() {
             string str = "";
             str += "Player info:\nPosition: " + getPos() +
-            "\nCoordinates: " + getPosIndex() +
+            "\nCoordinates: " + getTilePosIndex() +
             "\nEncampment: " + getCampStatus() +
             "\nAction points: " + getActionPoints() +
             "\nStrength: " + computeStrength() +
@@ -317,11 +344,7 @@ namespace Playable {
 
     public class NonPlayablePlayer : Player {
 
-        public ArtificialIntelligence playerAI;
-
         public NonPlayablePlayer(int supplies, int strength) : base(){
-
-            playerAI = new ArtificialIntelligence(this);
 
             this.supplies = supplies;
 
@@ -347,66 +370,6 @@ namespace Playable {
         public void newTurn() {
             // final updates
             this.actionPoints = maxActionPoints;
-            this.playerAI.processNewTurn();
-        }
-    }
-
-    public class ArtificialIntelligence {
-
-        public static float difficulty = 1f;
-
-        public static float distanceToPlayerToAttack = 50f;
-
-        public enum Behaviour { idle, wandering, attacking, healing };
-        public int behaviourState;
-
-        PathFinder DijsktraPF, AstarPF;
-
-        Player player;
-
-        public ArtificialIntelligence(Player p) {
-            behaviourState = (int)Behaviour.idle;
-            this.DijsktraPF = new DijkstraPathFinder(maxDepth: p.getMaxActionPoints(),
-                                                maxCost: p.getActionPoints(),
-                                                maxIncrementalCost: p.getMaxActionPoints());
-            this.AstarPF = new AstarPathFinder(maxDepth: p.getMaxActionPoints(),
-                                                maxCost: p.getActionPoints(),
-                                                maxIncrementalCost: p.getMaxActionPoints());
-            this.player = p;
-        }
-
-        public void processNewTurn() {
-            if (behaviourState == (int)Behaviour.idle) {
-                behaviourState = (int)Behaviour.wandering;
-            } else if (behaviourState == (int)Behaviour.wandering) {
-                //if (false) // TODO add condition on player HPs here
-                //    behaviourState = (int)Behaviour.healing;
-                //else if ((this.player.getPos() - GameControl.gameSession.humanPlayer.getPos()).magnitude < distanceToPlayerToAttack)
-                //    behaviourState = (int)Behaviour.attacking;
-                //else
-                wander();
-            } else if (behaviourState == (int)Behaviour.attacking) {
-
-            } else if (behaviourState == (int)Behaviour.healing) {
-
-            } else {
-                // some weirdness
-                behaviourState = (int)Behaviour.idle;
-            }
-        }
-
-        private void wander() {
-            // get move range
-            PathResult pr = DijsktraPF.pathFromTo(
-                            this.player.getPosTile(),
-                            new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
-                            playersCanBlockPath: true
-                            );
-
-            int rand = UnityEngine.Random.Range(0, pr.getExploredTiles().Count);
-
-            string message;
-            GameControl.gameSession.playerAttemptMove(this.player, pr.getExploredTiles()[rand], out message, movePlayer: true);
         }
     }
 }

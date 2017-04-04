@@ -11,7 +11,6 @@ namespace Viewable {
         public static float GlobalDrawDistance = 300f;
     }
 
-
     public abstract class ViewablePlayer {
         // Observer pattern
         List<PlayerView> playerViews;
@@ -63,6 +62,8 @@ namespace Viewable {
 
         public abstract void notifyMovement(PathResult pr);
     }
+
+
 
 
 }

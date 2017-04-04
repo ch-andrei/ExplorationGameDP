@@ -9,10 +9,11 @@ using TileAttributes;
 using Pathfinding;
 
 using Playable;
+using Followers;
 
 using Viewable;
 
-public class GameSession  {
+public class GameSession {
 
     public static float battleSuppliesWonPenalty = 0.25f;
 
@@ -22,8 +23,8 @@ public class GameSession  {
     public static float battleDefenderForestryBonus = 0.1f;
     public static float battleAttackerForestryPenalty = 0.1f;
 
-    public static float battleDefenderMarlandPenalty = 0.05f;
-    public static float battleAttackerMarlandPenalty = 0.1f;
+    public static float battleDefenderMarshlandPenalty = 0.05f;
+    public static float battleAttackerMarshlandPenalty = 0.1f;
 
     public static int playerPosLandmassTilesConstraint = 50;
     public static int playerPosLocalTilesConstraint = 5;
@@ -31,10 +32,26 @@ public class GameSession  {
     public static float enemyDespawnRadius = 400f;
     public static int enemySpawnPointSearchMaxDepth = 10;
     public static int enemyStrengthPerTribeLevel = 2;
+    public static int maxEnemiesSpawned = 10;
+
+    public List<string> gamelog { get; }
 
     // private variables
     public PlayablePlayer humanPlayer { get; }
-    public List<NonPlayablePlayer> AIPlayers { get; }
+
+    public int turnCount { get; set; }
+
+    private List<ArtificialIntelligence> AIs;
+    public List<NonPlayablePlayer> AIPlayers {
+        get {
+            List<NonPlayablePlayer> ps = new List<NonPlayablePlayer>();
+            foreach (ArtificialIntelligence AI in AIs) {
+                ps.Add(AI.getPlayer());
+            }
+            return ps;
+        }
+    }
+
     public MapGenerator mapGenerator { get; }
 
     public GameSession(MapGeneratorInput mgi) {
@@ -43,11 +60,15 @@ public class GameSession  {
         humanPlayer = new PlayablePlayer();
         InitializeHumanPlayerPosition();
 
-        AIPlayers = new List<NonPlayablePlayer>();
-        spawnNonPlayablePlayers(1);
+        AIs = new List<ArtificialIntelligence>();
+        spawnNonPlayablePlayers();
+
+        gamelog = new List<string>();
     }
 
     public void newTurn() {
+        turnCount++;
+
         // remove dead players
         foreach (NonPlayablePlayer p in AIPlayers) {
             if (p.dead) {
@@ -55,33 +76,46 @@ public class GameSession  {
             }
         }
 
-        Debug.Log("A new day dawns!"); // TODO load from xml
+        Log("A new day dawns!"); // TODO load from xml
 
         humanPlayer.newTurn();
 
-        foreach (NonPlayablePlayer p in AIPlayers) {
-            p.newTurn();
-            if ((p.getPos() - humanPlayer.getPos()).magnitude > enemyDespawnRadius) {
-                killPlayer(p);
-            }
-        }
-
         if (humanPlayer.dead) {
-            Debug.Log("And so your journey ends here..."); // TODO load from xml
+            Log("And so your journey ends here..."); // TODO load from xml
             endGame();
         }
-    }
 
-    private void endGame() {
-    }
-
-    private void removePlayerWithID(long id) {
-        for (int i = 0; i < AIPlayers.Count; i++) {
-            NonPlayablePlayer p = AIPlayers[i];
-            if (p.id == id) {
-                AIPlayers.RemoveAt(i);
-                break;
+        // despawn enemies out of range
+        foreach (ArtificialIntelligence AI in AIs) {
+            AI.processNewTurn();
+            if ((AI.getPlayer().getPos() - humanPlayer.getPos()).magnitude > enemyDespawnRadius) {
+                killPlayer(AI.getPlayer());
             }
+        }
+        spawnNonPlayablePlayers();
+    }
+
+    void Log(string str) {
+        gamelog.Add("Turn " + turnCount + "\n" + str);
+    }
+
+    public Player checkForPlayersAt(Tile tile, long id=-1) {
+        // check for human player
+        if (this.humanPlayer.getTilePosIndex() == tile.index && humanPlayer.id != id)
+            return humanPlayer;
+        // check for AI players
+        foreach (Player p in this.AIPlayers) {
+            if (p.getTilePosIndex() == tile.index && p.id != id) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    public void playerAttemptRecruit(Player p, Follower f) {
+        if (p.getSupplies() >= f.recruitCost) {
+            p.playerAddSupplies(-f.recruitCost);
+            p.addFollower(f);
         }
     }
 
@@ -99,7 +133,7 @@ public class GameSession  {
                                                 maxCost: p.getActionPoints(),
                                                 maxIncrementalCost: p.getMaxActionPoints()))
                              .pathFromTo(
-                                p.getPosTile(), 
+                                p.getTilePos(), 
                                 moveTo, 
                                 playersCanBlockPath: false
                              );
@@ -109,21 +143,37 @@ public class GameSession  {
 
             message = "Player moved successfully";
 
+            p.setTilePos(moveTo);
             p.notifyViewMovement(pr);
-            p.setPos(moveTo);
             p.loseActionPoints(Mathf.CeilToInt(pr.pathCost));
 
-            Tile tile = pr.getTilesOnPath()[0];
+            Tile tile = p.getTilePos();
             Player playerAtDestination;
-            if ((playerAtDestination = checkForPlayersAt(tile)) != null) {
-                if (p.id != playerAtDestination.id)
-                    playerBattle(p, playerAtDestination);
+            if ((playerAtDestination = checkForPlayersAt(tile, p.id)) != null) {
+                playerBattle(p, playerAtDestination);
             }
         }
 
         message = "Could not move player";
 
         return pr;
+    }
+
+    private void endGame() {
+        // TODO
+        // add some code to handle game exit here
+    }
+
+    private void removePlayerWithID(long id) {
+        for (int i = 0; i < AIPlayers.Count; i++) {
+            NonPlayablePlayer p = AIPlayers[i];
+            if (p.id == id) {
+                if (!p.dead)
+                    killPlayer(p);
+                AIs.RemoveAt(i);
+                break;
+            }
+        }
     }
 
     private void playerBattle(Player attacker, Player defender) {
@@ -135,20 +185,21 @@ public class GameSession  {
         if (defender.getCampStatus())
             defenderBonus += battleDefenderEncampedBonus;
 
-        Debug.Log("Fighting a battle between players!");
-        Debug.Log("Attacker");
-        Debug.Log(attacker);
-        Debug.Log("Defender");
-        Debug.Log(defender);
+        string log = "";
+        log += ("Fighting a battle between players!\n");
+        log += ("Attacker: ");
+        log += (attacker);
+        log += ("\nDefender: ");
+        log += (defender);
 
         // compute bonuses/penalties
-        foreach (TileAttribute ta in defender.getPosTile().getTileAttributes()) {
+        foreach (TileAttribute ta in defender.getTilePos().getTileAttributes()) {
             if (ta.GetType() == typeof(Forestry)){
                 defenderBonus += battleDefenderForestryBonus * (ta as Forestry).forestryDensity;
                 attackerBonus += battleAttackerForestryPenalty * (ta as Forestry).forestryDensity;
             } else if (ta.GetType() == typeof(Marshland)) {
-                defenderBonus += battleDefenderMarlandPenalty * (ta as Marshland).marshDensity;
-                attackerBonus += battleAttackerMarlandPenalty * (ta as Marshland).marshDensity;
+                defenderBonus += battleDefenderMarshlandPenalty * (ta as Marshland).marshDensity;
+                attackerBonus += battleAttackerMarshlandPenalty * (ta as Marshland).marshDensity;
             }
         }
 
@@ -164,30 +215,29 @@ public class GameSession  {
 
         float strengthDifference = defenderStrength - attackerStrength;
 
-        Debug.Log("att/def: " + attackerStrength + "/" + defenderStrength);
-
         if (strengthDifference >= 0) {
             // defender is the winner
 
             defender.distributeDamage(attackerStrength);
             defender.playerAddSupplies((int)(attacker.getSupplies() * (1 - battleSuppliesWonPenalty)));
 
-            Debug.Log("Defender won! Damage taken: " + attackerStrength);
+            log += ("Defender won! Damage taken: " + attackerStrength);
 
             killPlayer(attacker);
+            defender.checkFollowersHealthPoints();
         } else {
             // attacker is the winner
 
             attacker.distributeDamage(defenderStrength);
             attacker.playerAddSupplies((int)(defender.getSupplies() * (1 - battleSuppliesWonPenalty)));
 
-            Debug.Log("Attacker won! Damage taken: " + defenderStrength);
+            log += ("Attacker won! Damage taken: " + defenderStrength);
 
             killPlayer(defender);
+            attacker.checkFollowersHealthPoints();
         }
 
-        attacker.checkFollowersHealthPoints();
-        defender.checkFollowersHealthPoints();
+        Log(log);
     }
 
     private void killPlayer(Player p) {
@@ -246,7 +296,7 @@ public class GameSession  {
                         if (_localCount >= playerPosLocalTilesConstraint) {
                             // located acceptable starting position
                             // set player pos and return from this method
-                            humanPlayer.setPos(_tile);
+                            humanPlayer.setTilePos(_tile);
                             return;
                         }    
                     }
@@ -258,40 +308,116 @@ public class GameSession  {
         }
     }
 
-    public Player checkForPlayersAt(Tile tile) {
-        // check for AI players
-        foreach (Player p in this.AIPlayers) {
-            if (p.getPosIndex() == tile.index) {
-                return p;
-            }
-        }
-        // check for human player
-        if (this.humanPlayer.getPosIndex() == tile.index)
-            return humanPlayer;
-        return null;
-    }
-
-    private void spawnNonPlayablePlayers(int numberOfPlayersToSpawn) {
+    private void spawnNonPlayablePlayers() {
 
         HexRegion region = mapGenerator.getRegion() as HexRegion;
 
         // TODO implement more functionality here
 
-        Tile tile = mapGenerator.getRegion().getTileAt(this.humanPlayer.getPosTile().index);
+        // get tiles within vicinity
+        Tile tile = region.getTileAt(this.humanPlayer.getTilePos().index);
         PathResult pr = (new DijkstraUniformCostPathFinder(uniformCost: 1f, maxDepth: enemySpawnPointSearchMaxDepth, maxCost: float.MaxValue))
                  .pathFromTo(region, tile, new HexTile(new Vector3(), new Vector2(float.MaxValue, float.MaxValue)));
 
+        // spawn enemies at tiles with tribes
         foreach (Tile t in pr.getExploredTiles()) {
-            foreach (TileAttribute ta in t.getTileAttributes()) {
-                if (ta.GetType() == typeof(LocalTribe)) {
-                    int strength = (ta as LocalTribe).level * enemyStrengthPerTribeLevel;
-                    NonPlayablePlayer p = new NonPlayablePlayer(50, strength);
-                    p.setPos(t);
-                    if (p.computeStrength() > 0)
-                        AIPlayers.Add(p);
-                    break;
+            if ((t.getPos() - humanPlayer.getPos()).magnitude <= enemyDespawnRadius 
+                        && checkForPlayersAt(t) == null
+                        && AIs.Count < maxEnemiesSpawned) {
+                if (t.getTileType().GetType() == typeof(LandTileType)) {
+                    foreach (TileAttribute ta in t.getTileAttributes()) {
+                        if (ta.GetType() == typeof(LocalTribe)) {
+                            int strength = (ta as LocalTribe).level * enemyStrengthPerTribeLevel;
+                            NonPlayablePlayer p = new NonPlayablePlayer(50, strength);
+                            p.setTilePos(t);
+                            if (p.computeStrength() > 0)
+                                AIs.Add(new ArtificialIntelligence(p));
+                            break;
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    public class ArtificialIntelligence {
+
+        public static float difficulty = 1f;
+
+        public static float distanceToPlayerToAttack = 100f;
+
+        public enum Behaviour { idle, wandering, attacking, healing };
+        public int behaviourState;
+
+        PathFinder DijsktraPF, AstarPF, longDistancePathFinder;
+
+        NonPlayablePlayer player;
+
+        public ArtificialIntelligence(NonPlayablePlayer p) {
+            behaviourState = (int)Behaviour.idle;
+            this.DijsktraPF = new DijkstraPathFinder(maxDepth: p.getMaxActionPoints(),
+                                                maxCost: p.getActionPoints(),
+                                                maxIncrementalCost: p.getMaxActionPoints());
+            this.AstarPF = new AstarPathFinder(maxDepth: 25,
+                                                maxCost: 500,
+                                                maxIncrementalCost: p.getMaxActionPoints());
+            longDistancePathFinder = new LongDistancePathFinder(maxDepth: p.getMaxActionPoints(),
+                                                maxCost: p.getActionPoints(),
+                                                maxIncrementalCost: p.getMaxActionPoints());
+            this.player = p;
+        }
+
+        public NonPlayablePlayer getPlayer() {
+            return this.player;
+        }
+
+        public void processNewTurn() {
+            if (behaviourState == (int)Behaviour.idle) {
+                behaviourState = (int)Behaviour.wandering;
+            } else if (behaviourState == (int)Behaviour.wandering) {
+                if (this.player.getFollowersHealth() < this.player.getMaxActionPoints())
+                    behaviourState = (int)Behaviour.healing;
+                else if ((this.player.getPos() - GameControl.gameSession.humanPlayer.getPos()).magnitude < distanceToPlayerToAttack)
+                    behaviourState = (int)Behaviour.attacking;
+                else
+                    wander();
+            } else if (behaviourState == (int)Behaviour.attacking) {
+                attackHumanPlayer();
+            } else if (behaviourState == (int)Behaviour.healing) {
+                // TODO
+            } else {
+                // some weirdness
+                behaviourState = (int)Behaviour.idle;
+            }
+            player.newTurn();
+        }
+
+        private void wander() {
+            // get move range
+            PathResult pr = DijsktraPF.pathFromTo(
+                            this.player.getTilePos(),
+                            new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
+                            playersCanBlockPath: true
+                            );
+
+            int rand = UnityEngine.Random.Range(0, pr.getExploredTiles().Count);
+
+            string message;
+            GameControl.gameSession.playerAttemptMove(this.player, pr.getExploredTiles()[rand], out message, movePlayer: true);
+        }
+
+        private void attackHumanPlayer() {
+            // get move range
+            PathResult pr = longDistancePathFinder.pathFromTo(
+                            this.player.getTilePos(), 
+                            GameControl.gameSession.humanPlayer.getTilePos(),
+                            playersCanBlockPath: true
+                            );
+
+            int rand = UnityEngine.Random.Range(0, pr.getTilesOnPathStartFirst().Count);
+            string message;
+            GameControl.gameSession.playerAttemptMove(this.player, pr.getTilesOnPathStartFirst()[rand], out message, movePlayer: true);
+            
         }
     }
 }

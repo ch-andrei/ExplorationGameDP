@@ -1,4 +1,66 @@
+################################################################################
+April 3 Changelog:
 
+GameControl:
+    -Global useUnityGUI toggle
+    -No longer using Unity onGUI
+
+Mouse Control:
+    -No longer using Unity onGUI
+
+GameSession:
+    -Added turn count variable
+    -Added Log for the current game session
+    -Added list of logs for the current game session
+    -Added Artificial Intelligence 
+    -Added AI behaviours: "wandering", "attacking", "healing"
+    -Added functions to get players at given tile
+    -Added player follower recruitment logic
+    -Added end game logic (human player death)
+
+Pathfinding:
+    -Added main construtor for the abstract PathFinder class
+    -Added LongDistancePathFinder for computing path to a tile that is not within range (returns reachable short path which is on the long path to the tile)
+    -Refactored HeuristicPathFinders constructors
+
+Tile:
+    -Split ToString method: now can get tile stats separately
+
+Follower:
+    -Split ToString method: now can get follower stats separately
+    -Added PeasantArcher class
+
+Player:
+    -Added follower health getter functions
+    -Added getter function for recruitable followers
+    -Moved Artificial Intelligence to GameSession
+
+EntityView:
+    -Added display of player strength
+    -Added toggle for displaying player strength
+
+ActionMenuView:
+    -Added onClick functions to UI buttons
+    -Added display of player followers
+    -Added display for recruitable followers
+    -Added buttons to select one of three menus: "Followers", "Recruitable", "Upgrades"
+
+EncampmentButtonView:
+    -Toggles between which button to display based on player encampment status
+
+EventNotificationView:
+    -Added display of event notifications in UI
+    -Added toggle button for the event notification menu
+
+StatsView:
+    -Added updates to UI to display player stats
+
+TextTooltip:
+    -Added display of textual tooltips to any UI elements using OnPointerEnter/Exit interrupts
+    -Added customization of the tooltip color, size, and text to display
+
+UIcontrol:
+    -Added control for buttons via OnClick functions
 
 ################################################################################
 March 26 Changelog:

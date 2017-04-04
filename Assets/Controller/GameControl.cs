@@ -5,10 +5,13 @@ using UnityEngine;
 using MapGeneration;
 using TileAttributes;
 using Tiles;
+using Followers;
 
 public class GameControl : MonoBehaviour {
 
     public MapGeneratorInput mgi = new MapGeneratorInput();
+
+    public static bool useUnityGUI = false;
 
     [Range(1, 100)]
     public int gizmoSize;
@@ -53,9 +56,10 @@ public class GameControl : MonoBehaviour {
 
     // GUI stuff
     int playerInfoWidth = 400;
-    int playerInfoHeight = 200;
+    int playerInfoHeight = 300;
     bool showMenu = false;
     bool showPlayerMenu = false;
+    bool recruitFollowers = false;
 
     void OnGUI() {
         string button_name = "";
@@ -75,46 +79,66 @@ public class GameControl : MonoBehaviour {
                 showMenu = !showMenu;
             }
 
-            if (showPlayerMenu) {
-                button_name = "Hide Player Info";
-            } else {
-                button_name = "Show Player Info";
-            }
-            if (GUILayout.Button(button_name)) {
-                showPlayerMenu = !showPlayerMenu;
-            }
+            if (useUnityGUI) {
+                if (showPlayerMenu) {
+                    button_name = "Hide Player Info";
+                } else {
+                    button_name = "Show Player Info";
+                }
+                if (GUILayout.Button(button_name)) {
+                    showPlayerMenu = !showPlayerMenu;
+                }
 
-            string camp_status;
-            if (gameSession.humanPlayer.getCampStatus()) {
-                button_name = "Build Encampment";
-            } else {
-                button_name = "Leave Encampment";
-            }
-            if (GUILayout.Button(button_name)) {
-                gameSession.humanPlayer.changeCampStatus(out camp_status);
-            }
+                if (recruitFollowers) {
+                    button_name = "Hide Recruitment Menu";
+                } else {
+                    button_name = "Show Recruitment Menu";
+                }
+                if (GUILayout.Button(button_name)) {
+                    recruitFollowers = !recruitFollowers;
+                }
+                if (recruitFollowers) {
+                    List<Follower> recruitable = gameSession.humanPlayer.getRecruitableFollowers();
+                    foreach (Follower f in recruitable) {
+                        if (GUILayout.Button(f.recruitCost + " supplies for " + f + ".")) {
+                            gameSession.playerAttemptRecruit(gameSession.humanPlayer, f);
+                            recruitFollowers = false;
+                        }
+                    }
+                }
 
-            if (GUILayout.Button("Move player")) {
-                MouseControl.changeMoveMode();
-            }
+                string camp_status;
+                if (gameSession.humanPlayer.getCampStatus()) {
+                    button_name = "Leave Encampment";
+                } else {
+                    button_name = "Build Encampment";
+                }
+                if (GUILayout.Button(button_name)) {
+                    gameSession.humanPlayer.changeCampStatus(out camp_status);
+                }
 
-            if (GUILayout.Button("New turn")) {
-                gameSession.newTurn();
+                if (GUILayout.Button("Move player")) {
+                    MouseControl.changeMoveMode();
+                }
 
-                // TODO
-                // displayNewTurnNotification();
-            }
+                if (GUILayout.Button("New turn")) {
+                    gameSession.newTurn();
 
-            if (GUILayout.Button("Center on player")) {
-                CameraControl.toggleCenterOnPlayer();
+                    // TODO
+                    // displayNewTurnNotification();
+                }
+
+                if (GUILayout.Button("Center on player")) {
+                    CameraControl.toggleCenterOnPlayer();
+                }
             }
+            GUILayout.EndVertical();
+
+            if (showPlayerMenu)
+                GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight),
+                    gameSession.humanPlayer.ToString()
+                    );
         }
-        GUILayout.EndVertical();
-
-        if (showPlayerMenu)
-            GUI.Box(new Rect(Screen.width - playerInfoWidth, 0, playerInfoWidth, playerInfoHeight),
-                gameSession.humanPlayer.ToString()
-                );
     }
 
     // DEPRECATED

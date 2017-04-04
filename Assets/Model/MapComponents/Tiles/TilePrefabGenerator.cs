@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
+
 
 using TileViews;
 using TileAttributes;
@@ -49,8 +49,8 @@ public class TilePrefabGenerator : MonoBehaviour {
         //AssetDatabase.CreateAsset( mF.sharedMesh, "Assets/Resources/Prefabs/Meshes/HexMesh.obj");
         //AssetDatabase.SaveAssets();
 
-        Object prefab = PrefabUtility.CreateEmptyPrefab("Assets/Resources/Prefabs/" + "DefaultTile" + ".prefab");
-        PrefabUtility.ReplacePrefab(_tileView.transform.gameObject, prefab, ReplacePrefabOptions.ConnectToPrefab);
+        //Object prefab = PrefabUtility.CreateEmptyPrefab("Assets/Resources/Prefabs/" + "DefaultTile" + ".prefab");
+        //PrefabUtility.ReplacePrefab(_tileView.transform.gameObject, prefab, ReplacePrefabOptions.ConnectToPrefab);
     }
 
     private void OnDrawGizmos() {

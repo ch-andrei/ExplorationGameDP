@@ -17,6 +17,8 @@ public class MouseControl : MonoBehaviour {
     static bool selectionOrder = true;
     static bool moveMode = false;
 
+    public static Tile SelectedTile { get { return selectedTile; } }
+
     static Tile mouseOverTile, selectedTile, firstClickedTile, secondClickedTile;
     static int[] currentSelectedIndex;
     static Vector3 ySelectionOffset = new Vector3(0, 5, 0);
@@ -57,10 +59,6 @@ public class MouseControl : MonoBehaviour {
                                             );
     }
 
-    void Awake() {
-        
-    }
-
     void Update() {
 
         /// *** RAYCASTING FOR SELECTING TILES PART *** ///
@@ -98,7 +96,7 @@ public class MouseControl : MonoBehaviour {
             StartCoroutine(
                 displayPath(
                     DijsktraPF.pathFromTo(
-                        GameControl.gameSession.humanPlayer.getPosTile(),
+                        GameControl.gameSession.humanPlayer.getTilePos(),
                         new HexTile(new Vector3(float.MaxValue, float.MaxValue, float.MaxValue), new Vector2(float.MaxValue, float.MaxValue)),
                         playersCanBlockPath: true
                         ),
@@ -112,7 +110,7 @@ public class MouseControl : MonoBehaviour {
                 StartCoroutine(
                     displayPath(
                          AstarPF.pathFromTo(
-                             GameControl.gameSession.humanPlayer.getPosTile(),
+                             GameControl.gameSession.humanPlayer.getTilePos(),
                              mouseOverTile,
                              playersCanBlockPath: true
                              ),
@@ -157,7 +155,7 @@ public class MouseControl : MonoBehaviour {
                 StartCoroutine(
                     displayPath(
                         DijsktraPF.pathFromTo(
-                            GameControl.gameSession.humanPlayer.getPosTile(),
+                            GameControl.gameSession.humanPlayer.getTilePos(),
                             firstClickedTile,
                             playersCanBlockPath: true
                             ),
@@ -252,24 +250,26 @@ public class MouseControl : MonoBehaviour {
     }
 
     void OnGUI() {
-        if (selectedTile != null) {
-            string currentSelection = selectedTile.ToString();
-            GUI.Box(new Rect(Screen.width - menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), currentSelection);
-        }
-        if (firstClickedTile != null) {
-            string leftSelection = "First tile\n" + firstClickedTile;
-            GUI.Label(new Rect(0, Screen.height - menuHeight, menuWidth, menuHeight), leftSelection, guiStyle);
-        }
-        if (secondClickedTile != null) {
-            string rightSelection = "Second tile\n" + secondClickedTile;
-            GUI.Label(new Rect(0, Screen.height - 2 * menuHeight, menuWidth, menuHeight), rightSelection, guiStyle);
-        }
-        if (pathResult != null) {
-            string pathInfo = "Path cost:" + pathResult.pathCost;
-            foreach (Tile tile in pathResult.getTilesOnPathStartFirst()) {
-                pathInfo += "\n" + tile.index;
+        if (GameControl.useUnityGUI) {
+            if (selectedTile != null) {
+                string currentSelection = selectedTile.ToString();
+                GUI.Box(new Rect(Screen.width - menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), currentSelection);
             }
-            GUI.Label(new Rect(menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), pathInfo, guiStyle);
+            if (firstClickedTile != null) {
+                string leftSelection = "First tile\n" + firstClickedTile;
+                GUI.Label(new Rect(0, Screen.height - menuHeight, menuWidth, menuHeight), leftSelection, guiStyle);
+            }
+            if (secondClickedTile != null) {
+                string rightSelection = "Second tile\n" + secondClickedTile;
+                GUI.Label(new Rect(0, Screen.height - 2 * menuHeight, menuWidth, menuHeight), rightSelection, guiStyle);
+            }
+            if (pathResult != null) {
+                string pathInfo = "Path cost:" + pathResult.pathCost;
+                foreach (Tile tile in pathResult.getTilesOnPathStartFirst()) {
+                    pathInfo += "\n" + tile.index;
+                }
+                GUI.Label(new Rect(menuWidth, Screen.height - menuHeight, menuWidth, menuHeight), pathInfo, guiStyle);
+            }
         }
     }
 }

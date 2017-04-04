@@ -48,7 +48,13 @@ namespace Tiles {
             string s = "";
             s += "Position: " + getPos();
             s += "\nCoordinate: [" + (int)(index.x) + ", " + (int)(index.y) + "]";
-            s += "\nType:" + this.getTileType();
+            s += "\n" + tileStats();
+            return s;
+        }
+
+        public string tileStats() {
+            string s = "";
+            s += "Type:" + this.getTileType();
             s += "\nFertility: " + this.fertility;
             s += "\nHumidity: " + this.humidity;
             s += "\nTemperature: " + this.temperature;
